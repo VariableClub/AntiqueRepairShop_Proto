@@ -1,26 +1,18 @@
 using UnityEngine;
-using UnityEngine.XR.Interaction.Toolkit;
-using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
-public class EyeSocket : MonoBehaviour
+// 눈 자리. 공용 자리(PartSocket) 동작 + 눈이 채워졌는지 표시
+public class EyeSocket : PartSocket
 {
     public bool eyeFilled;
-    XRSocketInteractor socket;
 
-    void OnEnable()
-    {
-        socket = GetComponent<XRSocketInteractor>();
-        socket.selectEntered.AddListener(OnSelectEntered);
-    }
-
-    void OnDisable()
-    {
-        socket.selectEntered.RemoveListener(OnSelectEntered);
-    }
-
-    void OnSelectEntered(SelectEnterEventArgs args)
+    protected override void OnFilled(Transform item)
     {
         eyeFilled = true;
-        Debug.Log($"{args.interactableObject.transform.name} 눈 자리에 맞춤");
+        Debug.Log($"{item.name} 눈 자리에 맞춤");
+    }
+
+    protected override void OnEmptied(Transform item)
+    {
+        eyeFilled = false;
     }
 }
