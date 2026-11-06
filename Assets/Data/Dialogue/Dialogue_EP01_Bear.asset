@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e90aa8702d1c4ee459a7bc9724b9bb38, type: 3}
+  m_Name: Dialogue_EP01_Bear
+  m_EditorClassIdentifier: Assembly-CSharp::Dokkaebi.DialogueTable
+  lines:
+  - id: D01
+    speaker: 0
+    text: "\uBC84\uB824\uC9C4 \uC9C0 \uC624\uB798\uC57C. \uADF8\uB7F0\uB370 \uC774\uC0C1\uD558\uAC8C\u2026 \uAE30\uB2E4\uB9AC\uB294 \uB9C8\uC74C\uB9CC\uC740 \uB0A1\uC9C8 \uC54A\uB354\uB77C."
+    next: "\uB300\uC0AC \uB05D \u2192 \uACF0 \uC778\uD615\uC73C\uB85C \uBCC0\uC2E0"
+  - id: H01
+    speaker: 0
+    text: "\uBC30 \uC18D\uC5D0\uC11C \uBB54\uAC00 \uB2EC\uADF8\uB77D\uAC70\uB824\u2026"
+    next: "\uD78C\uD2B8 2\uB2E8\uACC4 (4\uC8FC\uCC28)"
+  - id: N01
+    speaker: 3
+    text: "\uC870\uAE08 \uB2A6\uC5B4\uB3C4 \uAF2D \uB370\uB9AC\uB7EC \uAC08\uAC8C."
+    next: "\uCABD\uC9C0 \uC190\uAE00\uC528 (\uB300\uC0AC\uCC3D \uC5C6\uC74C)"
+  - id: H02
+    speaker: 0
+    text: "\uD55C \uB540\uC529\u2026 \uCC28\uB840\uB300\uB85C."
+    next: "\uD78C\uD2B8 2\uB2E8\uACC4 (4\uC8FC\uCC28)"
+  - id: P01
+    speaker: 1
+    text: "\uB204\uAD70\uAC00\uB97C \uAE30\uB2E4\uB9B0\uB2E4\uB294 \uAC8C \uC774\uB7F0 \uB290\uB08C\uC774\uC5C8\uB098?"
+    next: "\uAE30\uC5B5 \uC885\uB8CC \uB4A4"
+  - id: D02
+    speaker: 0
+    text: "\u2026\u2026\uADF8 \uC544\uC774\uC600\uAD6C\uB098. \uD560\uBA38\uB2C8\uAC00 \uC624\uC2E4 \uB54C\uAE4C\uC9C0 \uB098\uB97C \uAF2D \uC548\uACE0 \uC788\uB358 \uC544\uC774. \uADF8 \uC791\uC740 \uD488\uC774 \uC544\uC9C1\uB3C4 \uAE30\uC5B5\uB098. \uB098, \uB2E4\uC2DC \uADF8 \uC544\uC774\uC5D0\uAC8C \uB3CC\uC544\uAC00\uACE0 \uC2F6\uC5B4."
+    next: "\uB300\uC0AC \uB05D \u2192 \uACF0 \uC778\uD615\uC73C\uB85C \uB3CC\uC544\uAC10 \u2192 \uBC18\uD658 \uC724\uACFD"
