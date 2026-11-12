@@ -45,12 +45,15 @@ namespace Dokkaebi
             }
         }
 
-        // 에디터 확인용
+        // 에디터 확인용: 시선 누적값을 건드리지 않고 바로 확정한다.
+        // (looked만 채우면 Update가 "벗어남 0.3초 초과"로 0으로 되돌려 확정되지 않는다)
         public void ForceConfirm()
         {
             if (Confirmed) return;
-            looked = dwell;
-            active = true;
+            Confirmed = true;
+            active = false;
+            Debug.Log($"[시선] {name}: 확인용 강제 확정");
+            OnConfirmed?.Invoke();
         }
     }
 }
