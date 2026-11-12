@@ -146,9 +146,19 @@ namespace Dokkaebi
         {
             ForceRelease();
             Locked = true;
-            if (Body != null) { StopMotion(); Body.isKinematic = true; }
+            if (Body != null)
+            {
+                StopMotion();
+                Body.isKinematic = true;
+                // 보간이 켜져 있으면 부모(곰 인형)가 순간이동해도 이전 위치에 남아 허공에 뜬다
+                Body.interpolation = RigidbodyInterpolation.None;
+                // 다른 Rigidbody(곰 인형 등)의 자식으로 붙으면 겹친 충돌체가 부모를 계속 밀어 떨리고 날아다닌다.
+                // 결합한 부품은 더 이상 부딪힐 필요가 없으므로 충돌을 끈다
+                if (parent != null && parent.GetComponentInParent<Rigidbody>() != null) Body.detectCollisions = false;
+            }
             transform.SetPositionAndRotation(worldPos, worldRot);
             if (parent != null) transform.SetParent(parent, true);
+            Physics.SyncTransforms();
             ApplyEnabled();
         }
 
