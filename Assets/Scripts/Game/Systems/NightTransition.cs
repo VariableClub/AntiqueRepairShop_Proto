@@ -51,13 +51,12 @@ namespace Dokkaebi
                 StartCoroutine(lighting.Brighten(lighting.spaceLevel * lighting.returnBrightening, spaceChange));
             yield return new WaitForSeconds(spaceChange);
 
-            // 2) 암전 (보던 방향을 기억해 둔다)
-            var cam = Camera.main;
-            Vector3 dir = cam != null ? Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up).normalized : Vector3.forward;
-            if (dir.sqrMagnitude < 0.01f) dir = Vector3.forward;
-            Vector3 eye = cam != null ? cam.transform.position : new Vector3(0f, 1.5f, 0f);
+            // 2) 암전. 다 어두워진 순간 보던 방향을 기억해 둔다 (고개를 숙이고 있어도 글자가 시야 안에 오게 위아래 기울기까지)
             if (fader != null) yield return fader.FadeTo(1f, blackout);
             else yield return new WaitForSeconds(blackout);
+            var cam = Camera.main;
+            Vector3 dir = cam != null ? cam.transform.forward : Vector3.forward;
+            Vector3 eye = cam != null ? cam.transform.position : new Vector3(0f, 1.5f, 0f);
 
             duringBlack?.Invoke();
             if (processed == ProcessKind.Return && returnRemnants != null) returnRemnants.SetActive(true);
@@ -69,7 +68,7 @@ namespace Dokkaebi
             {
                 label.text = nextLabel;
                 label.transform.position = eye + dir * labelDistance;
-                label.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+                label.transform.rotation = Quaternion.LookRotation(dir, Mathf.Abs(dir.y) > 0.98f && cam != null ? cam.transform.up : Vector3.up);
                 label.alpha = 0f;
                 label.gameObject.SetActive(true);
             }

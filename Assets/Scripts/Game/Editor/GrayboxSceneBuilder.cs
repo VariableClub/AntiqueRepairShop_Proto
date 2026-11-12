@@ -39,6 +39,7 @@ namespace Dokkaebi.EditorTools
         const string DokkaebiFbx = "Assets/Art/Dokkaebi/SM_Dokkaebi_Base.fbx";
         [Tooltip("도깨비 베이스 모델을 임시 연출에 쓸지 (없으면 기둥)")]
         static bool useDokkaebiModel = true;
+        const float DokkaebiHeight = 1.6f;
 
         static Transform heightRoot;
 
@@ -53,6 +54,7 @@ namespace Dokkaebi.EditorTools
             EnsureFolder(MatDir);
             EnsureFolder("Assets/Data/Dialogue");
             EnsureFolder("Assets/Data/Antiques");
+            EnsureFolder("Assets/Audio");
             font = EnsureFont();
             var table = EnsureDialogue();
             ConfigureMediaImporters();
@@ -81,7 +83,7 @@ namespace Dokkaebi.EditorTools
             var fill = new GameObject("천장 보조광 (주변 조명, 기억 장면 때 꺼짐)").AddComponent<Light>();
             fill.type = LightType.Point;
             fill.color = new Color(1f, 0.9f, 0.78f);
-            fill.intensity = 0.6f;
+            fill.intensity = 0.9f;
             fill.range = 4f;
             fill.shadows = LightShadows.None;
             fill.transform.position = new Vector3(0f, 2.3f, 0.3f);
@@ -120,9 +122,10 @@ namespace Dokkaebi.EditorTools
 
             // ---- 도깨비 (임시 연출, NPC-01·02) ----
             var dok = BuildDokkaebi(env, bearData);
-            var talk = new GameObject("도깨비 대사 자리").transform;
-            talk.SetParent(heightRoot, false);
-            talk.position = new Vector3(0f, H + 0.45f, 1.0f);
+            // 대사 글자는 도깨비 머리 위에 띄운다 (머리 속에 묻혀 글자가 잘리지 않게). 도깨비 키는 작업대 높이와 무관하게 1.6m
+            var talk = new GameObject("도깨비 대사 자리 (머리 위)").transform;
+            talk.SetParent(env, false);
+            talk.position = new Vector3(0f, DokkaebiHeight - 0.06f, 1.0f);
 
             // ---- 시스템 ----
             var systems = new GameObject("게임 흐름");
@@ -183,6 +186,7 @@ namespace Dokkaebi.EditorTools
             dialogue.transform.SetParent(systems.transform, false);
             dialogue.table = table;
             dialogue.font = font;
+            dialogue.overlayMaterial = EnsureOverlayFontMat();
 
             var flow = systems.AddComponent<GameFlow>();
             flow.tableHeight = H;
@@ -207,7 +211,7 @@ namespace Dokkaebi.EditorTools
 
             // 높이를 따라 움직이는 것들은 정적 배치(Static Batching)에서 빼야 움직인다
             SetNonStatic(heightRoot);
-            foreach (var f in Object.FindObjectsByType<FloorToHeight>(FindObjectsInactive.Include, FindObjectsSortMode.None)) f.gameObject.isStatic = false;
+            foreach (var f in Object.FindObjectsByType<FloorToHeight>(FindObjectsInactive.Include)) f.gameObject.isStatic = false;
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AddToBuildSettings(ScenePath);
@@ -279,8 +283,9 @@ namespace Dokkaebi.EditorTools
             lamp.transform.position = new Vector3(-0.45f, H + 0.38f, 0.7f);
             lamp.type = LightType.Point;
             lamp.color = new Color(1f, 0.82f, 0.6f);
-            lamp.range = 2.2f;
-            lamp.intensity = 2.5f;
+            // 밝기는 Performance URP 설정(추가 조명 켬, HDR 없음)에서 종이·도깨비가 하얗게 날아가지 않는 값
+            lamp.range = 3f;
+            lamp.intensity = 1.1f;
             return root;
         }
 
@@ -423,7 +428,11 @@ namespace Dokkaebi.EditorTools
             if (memoTex == null)
             {
                 var memoText = Text("메모 글씨 (임시 글자, 손글씨 텍스처 없음)", memoGo.transform, new Vector3(0f, 0f, -0.001f), "물건은 망가져 제 모습을 잃어도,\n그 안에 담긴 기억까지\n사라지는 건 아니란다.", 0.012f, new Color(0.2f, 0.15f, 0.1f));
-                memoText.rectTransform.sizeDelta = new Vector2(0.17f, 0.08f);
+                // 종이(18×9cm) 안에 들어가게 글자 크기를 맞춘다
+                memoText.rectTransform.sizeDelta = new Vector2(0.165f, 0.08f);
+                memoText.fontSizeMax = memoText.fontSize;
+                memoText.fontSizeMin = memoText.fontSize * 0.4f;
+                memoText.enableAutoSizing = true;
             }
             var glow = NoCol(Child(PrimitiveType.Quad, "메모 은은한 빛 (10초 안 볼 때)", memoGo.transform, new Vector3(0f, 0f, 0.001f), Quaternion.identity, new Vector3(0.2f, 0.11f, 1f), TransparentMat("메모 빛", new Color(1f, 0.9f, 0.5f, 0.35f))));
             var gaze = memoGo.AddComponent<GazeTarget>();
@@ -545,6 +554,7 @@ namespace Dokkaebi.EditorTools
             buttonPull.origin = buttonOrigin;
             buttonPull.step = 2;
             buttonPull.ignoreWhileInside = new Collider[] { bodyCol };
+            buttonPull.container = bearT.GetComponent<XRGrabInteractable>();
 
             var note = NewGrabbable("접힌 쪽지", set, noteOrigin.position, noteOrigin.rotation, "note", GrabCategory.Part, 0.01f);
             var folded = Child(PrimitiveType.Cube, "쪽지 (접힘)", note, Vector3.zero, Quaternion.identity, new Vector3(0.045f, 0.006f, 0.035f), Mat("메모 종이", new Color(0.92f, 0.88f, 0.78f)));
@@ -554,6 +564,7 @@ namespace Dokkaebi.EditorTools
             notePull.origin = noteOrigin;
             notePull.step = 2;
             notePull.ignoreWhileInside = new Collider[] { bodyCol };
+            notePull.container = bearT.GetComponent<XRGrabInteractable>();
 
             // 펼친 쪽지 (EP1-02, UI-04): 9×7cm 두 쪽. 왼쪽은 고정, 오른쪽은 가운데 접힌 선을 경첩으로 180° 열린다
             var noteTex = AssetDatabase.LoadAssetAtPath<Texture2D>($"{HandDir}/Note_N01.png");
@@ -657,13 +668,21 @@ namespace Dokkaebi.EditorTools
                 model.transform.SetParent(visual, false);
                 // 높이 1.6m, 발을 바닥에 맞춘다 (모델 축척·방향은 임포트 설정에 따라 다를 수 있어 눈으로 확인)
                 var rends = model.GetComponentsInChildren<Renderer>();
+                // 베이스 모델은 텍스처 없는 흰 재질이라 스탠드 빛에 하얗게 날아간다. 텍스처가 오기 전까지 차분한 회백색으로
+                var baseMat = Mat("도깨비 베이스", new Color(0.72f, 0.7f, 0.66f));
+                foreach (var r in rends)
+                {
+                    var shared = r.sharedMaterials;
+                    for (int i = 0; i < shared.Length; i++) shared[i] = baseMat;
+                    r.sharedMaterials = shared;
+                }
                 if (rends.Length > 0)
                 {
                     var b = rends[0].bounds;
                     foreach (var r in rends) b.Encapsulate(r.bounds);
                     if (b.size.y > 0.01f)
                     {
-                        float k = 1.6f / b.size.y;
+                        float k = DokkaebiHeight / b.size.y;
                         model.transform.localScale *= k;
                         b = rends[0].bounds; foreach (var r in rends) b.Encapsulate(r.bounds);
                         model.transform.position += new Vector3(root.transform.position.x - b.center.x, -b.min.y, root.transform.position.z - b.center.z);
@@ -740,16 +759,8 @@ namespace Dokkaebi.EditorTools
             if (font != null)
             {
                 tmp.font = font;
-                string path = "Assets/Art/Fonts/NotoSansKR Overlay.mat";
-                var overlay = AssetDatabase.LoadAssetAtPath<Material>(path);
-                var shader = Shader.Find("TextMeshPro/Distance Field Overlay");
-                if (overlay == null && shader != null && font.material != null)
-                {
-                    overlay = new Material(font.material) { name = "NotoSansKR Overlay" };
-                    overlay.shader = shader;
-                    AssetDatabase.CreateAsset(overlay, path);
-                }
-                if (overlay != null) { overlay.renderQueue = 4001; tmp.fontSharedMaterial = overlay; }
+                var overlay = EnsureOverlayFontMat();
+                if (overlay != null) tmp.fontSharedMaterial = overlay;
             }
             tmp.text = "둘째 밤";
             tmp.alignment = TextAlignmentOptions.Center;
@@ -759,6 +770,23 @@ namespace Dokkaebi.EditorTools
             tmp.rectTransform.sizeDelta = new Vector2(2f, 0.5f);
             go.SetActive(false);
             return tmp;
+        }
+
+        // 다른 물체 위에 그리는 글자 재질 (대사, 밤 전환 글자). 암전 판(Overlay 4000)보다 나중에 그린다
+        static Material EnsureOverlayFontMat()
+        {
+            if (font == null) return null;
+            string path = "Assets/Art/Fonts/NotoSansKR Overlay.mat";
+            var overlay = AssetDatabase.LoadAssetAtPath<Material>(path);
+            var shader = Shader.Find("TextMeshPro/Distance Field Overlay");
+            if (overlay == null && shader != null && font.material != null)
+            {
+                overlay = new Material(font.material) { name = "NotoSansKR Overlay" };
+                overlay.shader = shader;
+                AssetDatabase.CreateAsset(overlay, path);
+            }
+            if (overlay != null) overlay.renderQueue = 4001;
+            return overlay;
         }
 
         // 반환 뒤 다음 밤부터: 출입문 옆 사진·꽃 (PRC-05, 21-6). 비주얼은 신주연 담당으로 바꾼다
