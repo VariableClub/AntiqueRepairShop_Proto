@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.XR.Interaction.Toolkit.Filtering;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
+using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
 namespace Dokkaebi
 {
@@ -28,6 +30,10 @@ namespace Dokkaebi
         public bool active;
         [Tooltip("묶여 있는 동안 충돌을 끌 물건 콜라이더 (몸통 안에 들어 있으므로)")]
         public Collider[] ignoreWhileInside;
+        [Tooltip("부품이 들어 있는 물건 본체. 손이 부품 가까이에서 쥐면 본체가 아니라 부품이 잡히게 한다")]
+        public XRGrabInteractable container;
+        [Tooltip("손이 부품에서 이 거리 안이면 부품을 먼저 잡는다 (m)")]
+        public float grabFirstRadius = 0.06f;
 
         public bool Extracted { get; private set; }
         public event Action<PullOutJudge> OnExtracted;
@@ -42,6 +48,7 @@ namespace Dokkaebi
         float nextDamage;
         readonly Queue<(float t, Vector3 rel)> samples = new Queue<(float, Vector3)>();
         Collider[] myColliders;
+        XRSelectFilterDelegate partFirst;
 
         void Awake()
         {
@@ -56,12 +63,29 @@ namespace Dokkaebi
         {
             grab.Grabbed += OnGrabbed;
             grab.Released += OnReleased;
+            if (container != null)
+            {
+                partFirst ??= new XRSelectFilterDelegate(ContainerMayBeGrabbed);
+                container.selectFilters.Add(partFirst);
+            }
         }
 
         void OnDisable()
         {
             grab.Grabbed -= OnGrabbed;
             grab.Released -= OnReleased;
+            if (container != null && partFirst != null) container.selectFilters.Remove(partFirst);
+        }
+
+        // 부품은 본체 콜라이더 안에 묻혀 있어 손이 둘에 함께 닿는다. 부품 바로 위에서 쥐면 본체 잡기를 막아 부품이 잡히게 한다.
+        // 이미 본체를 쥔 손은 그대로 두고, 머리·다리처럼 부품에서 먼 곳을 쥐면 본체가 잡힌다
+        bool ContainerMayBeGrabbed(IXRSelectInteractor interactor, IXRSelectInteractable interactable)
+        {
+            if (Extracted || !xr.enabled || grab.IsHeld) return true;
+            if (interactable.interactorsSelecting.Contains(interactor)) return true;
+            var attach = interactor.GetAttachTransform(interactable);
+            Vector3 hand = attach != null ? attach.position : interactor.transform.position;
+            return Vector3.Distance(hand, transform.position) > grabFirstRadius;
         }
 
         void SetIgnore(bool ignore)

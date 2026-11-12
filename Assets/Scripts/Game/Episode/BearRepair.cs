@@ -151,14 +151,22 @@ namespace Dokkaebi
             {
                 case 1: Complete(1); break;
                 case 2: buttonPull.Extract(); notePull.Extract(); break;
-                case 3:
-                    for (int i = belly.Count; i < belly.required; i++) DebugInsertCotton();
-                    break;
+                case 3: StartCoroutine(DebugInsertAll()); break;
                 case 4:
                     var g = buttonPull.GetComponent<Grabbable>();
                     eye.Fit(g);
                     break;
                 case 5: stitch.DebugPassAll(); break;
+            }
+        }
+
+        // 솜 상자는 한 번에 한 덩어리만 내놓으므로, 새 덩어리가 생기기를 기다리며 채운다
+        IEnumerator DebugInsertAll()
+        {
+            for (int guard = 0; guard < 120 && CurrentStep == 3 && belly.Count < belly.required; guard++)
+            {
+                DebugInsertCotton();
+                yield return null;
             }
         }
 

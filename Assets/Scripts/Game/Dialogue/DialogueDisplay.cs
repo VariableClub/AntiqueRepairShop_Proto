@@ -14,6 +14,8 @@ namespace Dokkaebi
     {
         public DialogueTable table;
         public TMP_FontAsset font;
+        [Tooltip("다른 물체에 가려지지 않게 그리는 글자 재질 (TMP Distance Field Overlay). 비우면 도깨비 머리·손에 글자가 잘릴 수 있다")]
+        public Material overlayMaterial;
         [Tooltip("글자 크기 (m, 대략 글자 높이). 1m 거리 가독성은 Quest 3 실기에서 정한다 (T20)")]
         public float letterHeight = 0.03f;
         public int maxChars = 20;
@@ -27,6 +29,9 @@ namespace Dokkaebi
         [Tooltip("주인공 글자: 눈높이보다 얼마나 아래 (m)")]
         public float protagonistDrop = 0.12f;
         public float protagonistDistance = 0.75f;
+        [Tooltip("주인공 글자: 고개를 숙이거나 든 만큼 따라가는 한계 (도, 아래 / 위)")]
+        public float protagonistPitchDown = 40f;
+        public float protagonistPitchUp = 15f;
 
         struct Request { public DialogueLine line; public Transform anchor; public int ticket; }
 
@@ -46,6 +51,7 @@ namespace Dokkaebi
             go.transform.SetParent(transform, false);
             label = go.AddComponent<TextMeshPro>();
             if (font != null) label.font = font;
+            if (overlayMaterial != null) label.fontSharedMaterial = overlayMaterial;
             label.alignment = TextAlignmentOptions.Center;
             label.textWrappingMode = TextWrappingModes.NoWrap;
             label.outlineWidth = 0.2f;
@@ -117,9 +123,12 @@ namespace Dokkaebi
             {
                 if (cam != null)
                 {
-                    Vector3 fwd = Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up).normalized;
-                    if (fwd.sqrMagnitude < 0.01f) fwd = Vector3.forward;
-                    fixedPos = cam.transform.position + fwd * protagonistDistance + Vector3.down * protagonistDrop;
+                    // 작업대를 내려다보고 있어도 시야 안에 들어오게, 보는 방향의 위아래 기울기를 따라간다
+                    Vector3 flat = Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up);
+                    Vector3 fwd = flat.sqrMagnitude < 0.01f ? Vector3.forward : flat.normalized;
+                    float pitch = Mathf.Clamp(Mathf.Asin(Mathf.Clamp(cam.transform.forward.y, -1f, 1f)) * Mathf.Rad2Deg, -protagonistPitchDown, protagonistPitchUp);
+                    Vector3 dir = Quaternion.AngleAxis(-pitch, Vector3.Cross(Vector3.up, fwd)) * fwd;
+                    fixedPos = cam.transform.position + dir * protagonistDistance + Vector3.down * protagonistDrop;
                     useFixed = true;
                 }
             }
@@ -173,20 +182,44 @@ namespace Dokkaebi
                 return result;
             }
 
-            var words = text.Trim().Split(' ');
-            string cur = "";
-            foreach (var w in words)
+            // 문장 단위로 먼저 끊고, 긴 문장은 구절 길이가 비슷해지게 나눈다 (끝에 한두 어절만 남지 않게)
+            var sentence = new List<string>();
+            foreach (var w in text.Trim().Split(' '))
             {
                 if (w.Length == 0) continue;
-                string next = cur.Length == 0 ? w : cur + " " + w;
-                if (next.Length <= maxChars || cur.Length == 0) cur = next;
-                else { result.Add(cur); cur = w; }
-                // 문장이 끝나면 구절을 끊는다
-                if (cur.Length > 0 && (cur.EndsWith(".") || cur.EndsWith("?") || cur.EndsWith("!") || cur.EndsWith("…")))
-                { result.Add(cur); cur = ""; }
+                sentence.Add(w);
+                if (w.EndsWith(".") || w.EndsWith("?") || w.EndsWith("!") || w.EndsWith("…"))
+                { SplitEven(sentence, maxChars, result); sentence.Clear(); }
             }
-            if (cur.Length > 0) result.Add(cur);
+            if (sentence.Count > 0) SplitEven(sentence, maxChars, result);
             return result;
+        }
+
+        static void SplitEven(List<string> words, int maxChars, List<string> result)
+        {
+            int total = words.Count - 1;
+            foreach (var w in words) total += w.Length;
+            int parts = Mathf.Max(1, Mathf.CeilToInt(total / (float)Mathf.Max(1, maxChars)));
+            while (true)
+            {
+                var lines = new List<string>();
+                float target = total / (float)parts;
+                string cur = "";
+                foreach (var w in words)
+                {
+                    string next = cur.Length == 0 ? w : cur + " " + w;
+                    // 목표 길이에 더 가까운 쪽에서 끊는다. 남은 구절 수를 넘기지 않는다
+                    bool breakHere = cur.Length > 0 && lines.Count < parts - 1
+                                     && (next.Length > maxChars || Mathf.Abs(cur.Length - target) < Mathf.Abs(next.Length - target));
+                    if (breakHere) { lines.Add(cur); cur = w; }
+                    else cur = next;
+                }
+                if (cur.Length > 0) lines.Add(cur);
+                bool fits = true;
+                foreach (var l in lines) if (l.Length > maxChars && l.Contains(" ")) fits = false;
+                if (fits || parts >= words.Count) { result.AddRange(lines); return; }
+                parts++;
+            }
         }
     }
 }

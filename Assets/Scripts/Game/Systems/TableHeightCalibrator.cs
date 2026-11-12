@@ -64,7 +64,7 @@ namespace Dokkaebi
                 foreach (var g in moved) { if (!g.Locked) g.SetHome(); }
                 // 아직 꺼져 있는 물건(곰 인형 세트 등)은 켜질 때 Awake에서 제자리를 잡는다
             }
-            foreach (var f in FindObjectsByType<FloorToHeight>(FindObjectsInactive.Include, FindObjectsSortMode.None)) f.Fit(h);
+            foreach (var f in FindObjectsByType<FloorToHeight>(FindObjectsInactive.Include)) f.Fit(h);
             Grabbable.LostBelowY = h - 0.3f;
             GameEvents.RaiseTableHeightSet(h);
         }
