@@ -7,7 +7,7 @@ namespace Dokkaebi
     // 프롤로그 (기획서 10장, 프롤로그 연출 정의서 v0.1)
     //  EP0-02 도구 정리: 도구 4개를 트레이의 같은 모양 홈에 넣는다. 순서 자유(Q-169), 틀린 홈은 튕김(Q-170), 맞으면 고정(Q-171)
     //  EP0-03 할머니 메모 확인: 마지막 도구를 놓으면 도구함 뚜껑이 저절로 열리고, 메모에 시선 2초 → 종소리
-    //  EP0-01 스탠드 점등(0~5초 연출)은 3주차. 지금은 처음부터 켜 둔다
+    //  EP0-01 스탠드 점등(0~5초)은 GameFlow.Boot에서 한 뒤 Begin을 부른다
     public class PrologueController : MonoBehaviour
     {
         public FitSocket[] toolSlots;
@@ -76,7 +76,7 @@ namespace Dokkaebi
             if (Finished) return;
             Finished = true;
             if (memoGlow != null) memoGlow.SetActive(false);
-            Debug.Log("[프롤로그] 메모 확인 → 출입문 종소리 (효과음은 3주차)");
+            Debug.Log("[프롤로그] 메모 확인 → 출입문 종소리");
             OnFinished?.Invoke();
         }
 

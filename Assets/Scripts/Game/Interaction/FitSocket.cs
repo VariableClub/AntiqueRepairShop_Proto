@@ -121,7 +121,7 @@ namespace Dokkaebi
         {
             Filled = g;
             g.Lock(lockParent != null ? lockParent : transform, transform.position, FitRotation(g.transform));
-            Haptics.Send(g.LastHand, Haptics.FitAmp, Haptics.FitDur);
+            Haptics.Play(g.LastHand, Haptics.Fit);
             Debug.Log($"[맞추기] {name}: {g.name} 결합");
             if (!string.IsNullOrEmpty(itemId)) GameEvents.RaisePartFitted(itemId, g.key);
             Fitted?.Invoke(this, g);
@@ -149,7 +149,7 @@ namespace Dokkaebi
             if (dir.sqrMagnitude < 1e-6f) dir = transform.up;
             dir = (dir.normalized + Vector3.up * 0.5f).normalized;
             g.Body.linearVelocity = dir * 0.5f;
-            Haptics.Send(g.LastHand, Haptics.WrongAmp, Haptics.WrongDur);
+            Haptics.Play(g.LastHand, Haptics.Wrong);
         }
 
         void Update()
@@ -174,7 +174,7 @@ namespace Dokkaebi
 
             if (result == PushForceJudge.Result.Warn && Time.time >= nextWarnHaptic)
             {
-                Haptics.Send(pushTarget.Hand, Mathf.Lerp(0.15f, 0.8f, push.Ratio), 0.05f);
+                Haptics.Send(pushTarget.Hand, Haptics.WarnAmplitude(push.Ratio), Haptics.WarnDur);
                 nextWarnHaptic = Time.time + 0.05f;
                 if (!string.IsNullOrEmpty(itemId)) GameEvents.RaiseForceWarning(itemId, step, push.Ratio);
             }
@@ -183,7 +183,7 @@ namespace Dokkaebi
                 nextDamageTime = Time.time + damageCooldown;
                 string reason = $"맞지 않는 각도로 밀어 넣음 ({push.Describe()})";
                 var target = pushTarget;
-                Haptics.Send(target.Hand, Haptics.DamageAmp, Haptics.DamageDur);
+                Haptics.Play(target.Hand, Haptics.Damage);
                 target.ForceRelease(); // 손상 순간 쥔 부품을 놓게 한다 (Q-074)
                 if (!string.IsNullOrEmpty(itemId))
                 {

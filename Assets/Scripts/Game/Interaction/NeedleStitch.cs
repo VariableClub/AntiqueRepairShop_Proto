@@ -41,14 +41,15 @@ namespace Dokkaebi
                     if (i == Passed)
                     {
                         Passed++;
-                        Haptics.Send(needle.Hand, Haptics.FitAmp, Haptics.FitDur);
+                        Haptics.Play(needle.Hand, Haptics.Fit);
                         Debug.Log($"[꿰매기] {itemId}: 바늘구멍 {Passed}/{holes.Length} 통과");
+                        GameEvents.RaisePartFitted(itemId, $"hole{Passed}"); // 순서 맞추기 성공 = 부품 결합 (21-2)
                         HolePassed?.Invoke(Passed);
                     }
                     else if (Time.time >= nextWrong)
                     {
                         nextWrong = Time.time + wrongCooldown;
-                        Haptics.Send(needle.Hand, Haptics.WrongAmp, Haptics.WrongDur);
+                        Haptics.Play(needle.Hand, Haptics.Wrong);
                         Debug.Log($"[꿰매기] {itemId}: {i + 1}번 구멍은 순서가 아님 (다음은 {Passed + 1}번)");
                         RepairRecord.AddWrong(itemId, step);
                         GameEvents.RaiseWrong(itemId, step);
@@ -62,7 +63,7 @@ namespace Dokkaebi
                 if (pulled >= pullDistance)
                 {
                     Completed = true;
-                    Haptics.Send(needle.Hand, 0.6f, 0.2f);
+                    Haptics.Play(needle.Hand, Haptics.RepairDone);
                     Debug.Log($"[꿰매기] {itemId}: 마지막 실을 {pulled * 100f:0}cm 당김 → 완료");
                     OnCompleted?.Invoke();
                 }

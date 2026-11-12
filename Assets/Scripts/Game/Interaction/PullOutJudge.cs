@@ -136,7 +136,7 @@ namespace Dokkaebi
             if (speed >= warnSpeed && now >= nextHaptic)
             {
                 float t = Mathf.InverseLerp(warnSpeed, damageSpeed, speed);
-                Haptics.Send(grab.Hand, Mathf.Lerp(0.15f, 0.8f, t), 0.05f);
+                Haptics.Send(grab.Hand, Haptics.WarnAmplitude(t), Haptics.WarnDur);
                 nextHaptic = now + 0.05f;
                 GameEvents.RaiseForceWarning(itemId, step, t);
             }
@@ -147,7 +147,7 @@ namespace Dokkaebi
                 nextDamage = now + 1f;
                 overTime = 0f;
                 string reason = $"세게 당김 {speed:0.00}m/s";
-                Haptics.Send(grab.Hand, Haptics.DamageAmp, Haptics.DamageDur);
+                Haptics.Play(grab.Hand, Haptics.Damage);
                 RepairRecord.MarkDamage(itemId, step, reason);
                 GameEvents.RaiseForceDamaged(itemId, step, reason);
                 OnForceDamaged?.Invoke(this, reason);
@@ -166,7 +166,8 @@ namespace Dokkaebi
             grab.SetBaseKinematic(false);
             grab.returnWhenLost = true;
             grab.SetHome(origin.position + Vector3.up * 0.12f, transform.rotation);
-            Haptics.Send(grab.Hand, Haptics.FitAmp, Haptics.FitDur);
+            Haptics.Play(grab.Hand, Haptics.Fit);
+            Sfx.Play(SfxKey.Extract, transform.position);
             Debug.Log($"[꺼내기] {itemId}: {name} 꺼냄");
             OnExtracted?.Invoke(this);
         }
