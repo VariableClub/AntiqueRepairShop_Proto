@@ -36,9 +36,15 @@ namespace Dokkaebi
             if (template == null || spawnPoint == null || made >= maxPieces) { current = null; return; }
             var go = Instantiate(template.gameObject, spawnPoint.position, spawnPoint.rotation, transform.parent);
             go.name = $"솜 덩어리 {++made}";
+            // 원본이 게임 시작 때 '정지' 상태(kinematic)로 잡혀 있었다면 복제본도 그 상태를 물려받아
+            // 영원히 움직이지 않는다 (손으로 잡아도 따라오지 않음). 솜은 항상 물리로 움직이는 물건이다
+            var rb = go.GetComponent<Rigidbody>();
+            if (rb != null) rb.isKinematic = false;
             go.SetActive(true);
             current = go.GetComponent<Grabbable>();
             current.SetHome(spawnPoint.position, spawnPoint.rotation);
+            current.ApplyGate();
+            Debug.Log($"[솜] {go.name} 생성 (kinematic={(rb != null && rb.isKinematic)}, 잡기 허용={(current.Grab != null && current.Grab.enabled)})");
         }
     }
 }
