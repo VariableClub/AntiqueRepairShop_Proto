@@ -110,3 +110,4 @@ InitTestScene*.unity*
 
 # 대사 음성 비교용 파일 (tools/tts/generate_dialogue.py --audition)
 /tools/tts/audition/
+__pycache__/
