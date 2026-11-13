@@ -727,14 +727,14 @@ namespace Dokkaebi.EditorTools
             return d;
         }
 
-        // 기억 영상 화면 (MEM-05): 정면 작업대 너머, 플레이어에게서 약 1.4m(정면 벽 바로 앞), 가로 1.6m
+        // 기억 영상 화면 (MEM-05): 정면 작업대 너머, 플레이어에게서 약 1.3m(정면 출입문·벽 10cm 앞), 가로 1.6m
         static MemoryVideoPlayer BuildMemoryScreen()
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
             go.name = "기억 영상 화면 (MEM-05·06·07)";
             Object.DestroyImmediate(go.GetComponent<Collider>());
             go.transform.SetParent(heightRoot, false);
-            go.transform.position = new Vector3(0f, H + 0.55f, 1.40f);
+            go.transform.position = new Vector3(0f, H + 0.55f, 1.30f); // 정면 출입문 앞면(z 1.40)과 같은 평면이면 깜박이므로 10cm 앞
             go.transform.localScale = new Vector3(1.6f, 0.9f, 1f);
             var r = go.GetComponent<Renderer>();
             r.sharedMaterial = EnsureShaderMat("기억 영상 화면", ShaderScreen);
