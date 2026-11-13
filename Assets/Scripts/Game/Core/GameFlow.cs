@@ -104,6 +104,7 @@ namespace Dokkaebi
             // 물리: S3·S6·Boot는 모두 그 자리에 고정
             bool freeze = s == NightState.S3_Memory || s == NightState.S6_Transition || s == NightState.Boot;
 
+            Grabbable.SetGate(tools, items, parts, freeze);
             Grabbable.ForEach(g =>
             {
                 g.SetFrozen(freeze);
