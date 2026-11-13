@@ -37,6 +37,10 @@ class ApiError(Exception):
     pass
 
 
+class DailyLimit(ApiError):
+    pass
+
+
 def parse_lines(path):
     """Unity YAML(DialogueTable)에서 id / speaker / text 를 읽는다."""
     lines, cur = [], None
@@ -152,7 +156,7 @@ def call(method, url, headers, body=None):
             msg = e.read().decode("utf-8", "replace")
             why, daily, delay = explain(e.code, msg)
             if daily:
-                raise ApiError(f"오늘 무료 한도를 다 씀 ({why}). 한국 시간 오후 4~5시쯤 다시 채워지니 그 뒤에 실행하세요")
+                raise DailyLimit(f"오늘 무료 한도를 다 씀 ({why}). 한국 시간 오후 4~5시쯤 다시 채워지니 그 뒤에 실행하세요")
             if e.code in (429, 500, 503) and attempt < 4:
                 wait = max(delay + 2, 20 * (attempt + 1))
                 print(f"     ({why} → {wait:.0f}초 기다렸다 다시 보냄)", flush=True)
@@ -203,7 +207,16 @@ def chirp_synthesize(text, voice, lang, speed):
 
 # ---------- gemini (Gemini API 음성 모델) ----------
 
+_models = []
+
+
 def gemini_models():
+    if not _models:
+        _models.extend(_gemini_models())
+    return list(_models)
+
+
+def _gemini_models():
     res = call("GET", f"{GEMINI_API}/models?pageSize=1000", gemini_headers())
     return sorted(m["name"].split("/")[-1] for m in res.get("models", []) if "tts" in m["name"])
 
@@ -237,19 +250,36 @@ def gemini_synthesize(text, voice, model, style):
     """(pcm 바이트, 샘플레이트)를 돌려준다. 지시문까지 읽은 것 같으면 다시 만든다."""
     spoken = strip_pauses(text)
     best = None
-    for attempt in range(3):
+    for attempt in range(2):
         pcm, rate = gemini_once(spoken, voice, model, style)
         seconds = len(pcm) / 2 / rate
         if best is None or len(pcm) < len(best[0]):
             best = (pcm, rate)
         if not too_long(spoken, seconds):
             return pcm, rate
-        print(f"     ({seconds:.1f}초: 대사에 비해 너무 김 → 지시문까지 읽은 듯해 다시 만듦 {attempt + 1}/3)", flush=True)
-    print("     !! 세 번 모두 길게 나옴. 가장 짧은 것을 저장함. 꼭 들어 보고, 이상하면 이 줄만 --ids 로 다시 만드세요")
+        print(f"     ({seconds:.1f}초: 대사에 비해 너무 김 → 지시문까지 읽은 듯해 다시 만듦 {attempt + 1}/2)", flush=True)
+    print("     !! 두 번 모두 길게 나옴. 가장 짧은 것을 저장함. 꼭 들어 보고, 이상하면 이 줄만 --ids 로 다시 만드세요")
     return best
 
 
+_spent = set()  # 오늘 한도를 다 쓴 모델
+
+
 def gemini_once(spoken, voice, model, style):
+    """무료 한도는 모델마다 하루 10번쯤이라, 다 쓴 모델은 건너뛰고 다른 음성 모델로 만든다."""
+    order = [model] + [m for m in reversed(gemini_models()) if m != model and "pro" not in m]
+    for m in order:
+        if m in _spent:
+            continue
+        try:
+            return gemini_request(spoken, voice, m, style)
+        except DailyLimit:
+            _spent.add(m)
+            print(f"     ({m}: 오늘 무료 한도를 다 씀 → 다른 모델로 넘어감)", flush=True)
+    raise DailyLimit("쓸 수 있는 음성 모델 모두 오늘 무료 한도를 다 씀. 한국 시간 오후 4~5시쯤 다시 채워지니 그 뒤에 실행하세요")
+
+
+def gemini_request(spoken, voice, model, style):
     prompt = gemini_prompt(spoken, style)
     pace(21)
     body = {"contents": [{"parts": [{"text": prompt}]}],
