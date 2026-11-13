@@ -19,7 +19,7 @@
   python3 tools/tts/generate_dialogue.py --ids D01 D02 --force   # 지정한 줄만 다시 만들기
   python3 tools/tts/generate_dialogue.py --engine gemini --force # 연기 지시를 따르는 모델로 만들기
 """
-import argparse, base64, json, os, re, subprocess, sys, urllib.error, urllib.request, wave
+import argparse, base64, json, os, re, subprocess, sys, time, urllib.error, urllib.request, wave
 
 ASSET = "Assets/Data/Dialogue/Dialogue_EP01_Bear.asset"
 OUT_DIR = "Assets/Audio/Voice"
@@ -113,11 +113,23 @@ def gemini_headers():
 def call(method, url, headers, body=None):
     req = urllib.request.Request(url, data=json.dumps(body).encode() if body is not None else None,
                                  headers=headers, method=method)
-    try:
-        with urllib.request.urlopen(req, timeout=120) as r:
-            return json.loads(r.read())
-    except urllib.error.HTTPError as e:
-        raise ApiError(f"API 오류 {e.code}: {e.read().decode('utf-8', 'replace')}")
+    for attempt in range(5):
+        try:
+            with urllib.request.urlopen(req, timeout=180) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            msg = e.read().decode("utf-8", "replace")
+            if e.code in (429, 500, 503) and attempt < 4:
+                wait = 25 * (attempt + 1)  # 무료 한도는 1분에 몇 번뿐이라 기다렸다 다시 보낸다
+                print(f"     (API {e.code}: {wait}초 기다렸다 다시 보냄)", flush=True)
+                time.sleep(wait)
+                continue
+            raise ApiError(f"API 오류 {e.code}: {msg}")
+        except urllib.error.URLError as e:
+            if attempt < 4:
+                time.sleep(5)
+                continue
+            raise ApiError(f"연결 실패: {e}")
 
 
 # ---------- chirp (Cloud Text-to-Speech) ----------
@@ -170,10 +182,41 @@ def gemini_pick_model():
     return flash[-1]  # 이름순으로 가장 뒤 = 가장 새 모델
 
 
+def gemini_prompt(spoken, style):
+    """연기 지시(style)는 '읽지 않는 메모'로, 읽을 글은 TRANSCRIPT 아래에만 둔다 (지시문까지 읽는 일을 막는다)."""
+    if not style:
+        return spoken
+    return ("You are a voice actor recording one line of game dialogue. "
+            "Speak ONLY the text under TRANSCRIPT, exactly once, in Korean. "
+            "The director's notes describe HOW to speak. Never say them aloud.\n\n"
+            f"### DIRECTOR'S NOTES (do not read aloud)\n{style.strip()}\n\n"
+            f"### TRANSCRIPT\n{spoken}")
+
+
+def too_long(spoken, seconds):
+    """지시문까지 읽었으면 음성이 대사 길이에 비해 지나치게 길다."""
+    n = sum(1 for c in spoken if not c.isspace())
+    return seconds > n / 1.8 + 3.0
+
+
 def gemini_synthesize(text, voice, model, style):
-    """(pcm 바이트, 샘플레이트)를 돌려준다."""
+    """(pcm 바이트, 샘플레이트)를 돌려준다. 지시문까지 읽은 것 같으면 다시 만든다."""
     spoken = strip_pauses(text)
-    prompt = f"{style.strip()}\n\n{spoken}" if style else spoken
+    best = None
+    for attempt in range(3):
+        pcm, rate = gemini_once(spoken, voice, model, style)
+        seconds = len(pcm) / 2 / rate
+        if best is None or len(pcm) < len(best[0]):
+            best = (pcm, rate)
+        if not too_long(spoken, seconds):
+            return pcm, rate
+        print(f"     ({seconds:.1f}초: 대사에 비해 너무 김 → 지시문까지 읽은 듯해 다시 만듦 {attempt + 1}/3)", flush=True)
+    print("     !! 세 번 모두 길게 나옴. 가장 짧은 것을 저장함. 꼭 들어 보고, 이상하면 이 줄만 --ids 로 다시 만드세요")
+    return best
+
+
+def gemini_once(spoken, voice, model, style):
+    prompt = gemini_prompt(spoken, style)
     body = {"contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"responseModalities": ["AUDIO"],
                                  "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}}}}
@@ -199,7 +242,7 @@ def write_wav(path, pcm, rate):
 def save(dest_noext, engine, text, voice, lang, speed, model, style):
     """한 줄을 만들어 저장하고 파일 경로를 돌려준다."""
     if engine == "gemini":
-        pcm, rate = gemini_synthesize(text, voice.split("-")[-1], model, style)
+        pcm, rate = gemini_synthesize(text, voice.split("-")[-1].capitalize(), model, style)
         dest = dest_noext + ".wav"
         write_wav(dest, pcm, rate)
     else:
@@ -261,7 +304,7 @@ def main():
             return
 
         all_lines = parse_lines(a.asset)
-        model = a.model
+        model = a.model or cfg.get("model")
         if engine == "gemini" and not model and not a.dry_run:
             model = gemini_pick_model()
             print(f"모델: {model}")
@@ -298,7 +341,7 @@ def main():
         os.makedirs(a.out, exist_ok=True)
 
         print(f"엔진 {engine}, 음성 {voice}" + (f", 빠르기 {speed}" if engine == "chirp" else ""))
-        total = 0
+        total, made, failed = 0, [], []
         for l in lines:
             text, o = spoken(l)
             base = os.path.join(a.out, l["id"])
@@ -308,10 +351,20 @@ def main():
             print(f"{l['id']:4} {'건너뜀(있음, 다시 만들려면 --force)' if skip else '생성'}  {shown}")
             if skip or a.dry_run:
                 continue
-            dest = save(base, engine, text, a.voice or o.get("voice", voice), a.lang,
-                        a.speed if a.speed is not None else o.get("speed", speed), model, o.get("style", style))
+            try:
+                dest = save(base, engine, text, a.voice or o.get("voice", voice), a.lang,
+                            a.speed if a.speed is not None else o.get("speed", speed), model, o.get("style", style))
+            except (ApiError, SystemExit) as e:
+                failed.append(l["id"])
+                print(f"     !! 실패 (옛 파일이 그대로 남음): {e}")
+                continue
             remove_other_ext(dest)
+            made.append(l["id"])
             total += len(text)
+        if not a.dry_run:
+            print(f"만든 줄: {' '.join(made) or '없음'}")
+            if failed:
+                print(f"!! 실패한 줄: {' '.join(failed)}  → 잠시 뒤 `--ids {' '.join(failed)} --force` 로 다시 만드세요")
         print(f"끝. 이번에 보낸 글자 수 {total}. 유니티에서 「도깨비 > 대사 음성 연결」을 실행하세요")
     except ApiError as e:
         sys.exit(str(e))
