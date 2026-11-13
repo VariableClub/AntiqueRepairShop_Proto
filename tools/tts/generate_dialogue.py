@@ -110,6 +110,37 @@ def gemini_headers():
     return {"x-goog-api-key": key, "Content-Type": "application/json"}
 
 
+def explain(code, msg):
+    """오류를 한 줄로 풀어 준다: (설명, 하루 한도를 다 썼는지, 서버가 알려 준 대기 초)."""
+    quota, delay = "", 0.0
+    try:
+        err = json.loads(msg)
+        err = (err[0] if isinstance(err, list) else err).get("error", {})
+        for d in err.get("details", []):
+            for v in d.get("violations", []):
+                quota = v.get("quotaId", "") or quota
+            if "retryDelay" in d:
+                delay = float(re.sub(r"[^0-9.]", "", d["retryDelay"]) or 0)
+    except Exception:
+        pass
+    if code == 429:
+        daily = "PerDay" in quota
+        return (f"하루 한도 초과 {quota}" if daily else f"1분 한도 초과 {quota}".strip()), daily, delay
+    return f"구글 서버 오류 {code} (한도와 무관, 잠시 뒤 풀림)", False, delay
+
+
+_last_call = [0.0]
+
+
+def pace(seconds):
+    """무료 한도(1분에 몇 번)에 걸리지 않게 호출 사이를 띄운다."""
+    wait = _last_call[0] + seconds - time.time()
+    if wait > 0:
+        print(f"     (한도에 안 걸리게 {wait:.0f}초 쉼)", flush=True)
+        time.sleep(wait)
+    _last_call[0] = time.time()
+
+
 def call(method, url, headers, body=None):
     req = urllib.request.Request(url, data=json.dumps(body).encode() if body is not None else None,
                                  headers=headers, method=method)
@@ -119,9 +150,12 @@ def call(method, url, headers, body=None):
                 return json.loads(r.read())
         except urllib.error.HTTPError as e:
             msg = e.read().decode("utf-8", "replace")
+            why, daily, delay = explain(e.code, msg)
+            if daily:
+                raise ApiError(f"오늘 무료 한도를 다 씀 ({why}). 한국 시간 오후 4~5시쯤 다시 채워지니 그 뒤에 실행하세요")
             if e.code in (429, 500, 503) and attempt < 4:
-                wait = 25 * (attempt + 1)  # 무료 한도는 1분에 몇 번뿐이라 기다렸다 다시 보낸다
-                print(f"     (API {e.code}: {wait}초 기다렸다 다시 보냄)", flush=True)
+                wait = max(delay + 2, 20 * (attempt + 1))
+                print(f"     ({why} → {wait:.0f}초 기다렸다 다시 보냄)", flush=True)
                 time.sleep(wait)
                 continue
             raise ApiError(f"API 오류 {e.code}: {msg}")
@@ -217,6 +251,7 @@ def gemini_synthesize(text, voice, model, style):
 
 def gemini_once(spoken, voice, model, style):
     prompt = gemini_prompt(spoken, style)
+    pace(21)
     body = {"contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"responseModalities": ["AUDIO"],
                                  "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}}}}
