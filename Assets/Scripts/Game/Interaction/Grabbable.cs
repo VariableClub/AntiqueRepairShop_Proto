@@ -24,6 +24,24 @@ namespace Dokkaebi
         // 플레이 공간 중심에서 이만큼 벗어나도 손이 닿지 않는 곳
         public static float LostOutsideRadius = 1.4f;
 
+        // 지금 상태가 허용하는 잡기·물리 (GameFlow가 상태를 바꿀 때 적어 둔다). 나중에 새로 생긴 물건(솜 덩어리 복제 등)이 따라 맞춘다.
+        static bool gateKnown, gateTools, gateItems, gateParts, gateFreeze;
+        public static void SetGate(bool tools, bool items, bool parts, bool freeze)
+        {
+            gateKnown = true; gateTools = tools; gateItems = items; gateParts = parts; gateFreeze = freeze;
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() { gateKnown = false; }
+
+        // 새로 생긴 물건에 지금 상태의 잡기·물리 규칙을 적용한다
+        public void ApplyGate()
+        {
+            if (!gateKnown) return;
+            SetFrozen(gateFreeze);
+            SetAllowed(category == GrabCategory.Tool ? gateTools : category == GrabCategory.Item ? gateItems : gateParts);
+        }
+
         [Tooltip("놓인 자리 판정에 쓰는 이름 (예: button, cotton, tool_tweezers, bear)")]
         public string key;
         public GrabCategory category = GrabCategory.Part;
