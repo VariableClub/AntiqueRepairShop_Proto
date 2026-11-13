@@ -22,6 +22,8 @@ namespace Dokkaebi
         [TextArea(2, 5)] public string text;
         [Tooltip("다음으로 넘어가는 조건 (메모). 예: 변신 끝, 단계 완료")]
         public string next;
+        [Tooltip("대사 음성 (실험: Google TTS로 만든 파일). 비우면 글자만 나온다. 있으면 음성 길이에 맞춰 글자를 넘긴다")]
+        public AudioClip voice;
     }
 
     // 대사 데이터 (UI-03). 대본(신주연)이 기준이고, 이 표는 대본을 옮겨 적는다 (Q-094).
