@@ -33,10 +33,16 @@ namespace Dokkaebi
         public float protagonistPitchDown = 40f;
         public float protagonistPitchUp = 15f;
 
+        [Header("대사 음성 (실험)")]
+        [Range(0f, 1f)] public float voiceVolume = 1f;
+        [Tooltip("음성이 끝난 뒤 글자를 더 보여주는 시간 (초)")]
+        public float voiceTailPad = 0.25f;
+
         struct Request { public DialogueLine line; public Transform anchor; public int ticket; }
 
         readonly Queue<Request> queue = new Queue<Request>();
         TextMeshPro label;
+        AudioSource voiceSource;
         Transform follow;
         Vector3 fixedPos;
         bool useFixed;
@@ -60,6 +66,15 @@ namespace Dokkaebi
             label.fontSize = letterHeight * 10f / 0.72f;
             label.rectTransform.sizeDelta = new Vector2(1.2f, 0.2f);
             label.gameObject.SetActive(false);
+
+            var vgo = new GameObject("대사 음성");
+            vgo.transform.SetParent(transform, false);
+            voiceSource = vgo.AddComponent<AudioSource>();
+            voiceSource.playOnAwake = false;
+            voiceSource.loop = false;
+            voiceSource.minDistance = 0.5f;
+            voiceSource.maxDistance = 6f;
+            voiceSource.rolloffMode = AudioRolloffMode.Linear;
         }
 
         // 대사를 대기열에 넣는다. 돌려받은 번호로 끝났는지 확인할 수 있다.
@@ -103,15 +118,56 @@ namespace Dokkaebi
                 PreparePosition(r);
                 label.color = ColorFor(r.line.speaker);
                 label.gameObject.SetActive(true);
-                foreach (var p in phrases)
+                var clip = r.line.voice;
+                PlayVoice(clip, r.anchor, r.line.speaker);
+                var times = PhraseTimes(phrases, clip);
+                for (int i = 0; i < phrases.Count; i++)
                 {
-                    label.text = p;
-                    yield return new WaitForSeconds(DurationOf(p));
+                    label.text = phrases[i];
+                    yield return new WaitForSeconds(times[i]);
                 }
+                if (voiceSource != null) voiceSource.Stop();
                 label.gameObject.SetActive(false);
                 finished = Mathf.Max(finished, r.ticket);
             }
             running = false;
+        }
+
+        // 음성이 있으면 음성 길이를 글자 수 비율로 나눠 구절마다 보여주고, 없으면 글자 수로 계산한다
+        List<float> PhraseTimes(List<string> phrases, AudioClip clip)
+        {
+            var times = new List<float>();
+            if (clip == null)
+            {
+                foreach (var p in phrases) times.Add(DurationOf(p));
+                return times;
+            }
+            var weights = new List<int>();
+            int sum = 0;
+            foreach (var p in phrases)
+            {
+                int n = 0;
+                foreach (char c in p) if (!char.IsWhiteSpace(c)) n++;
+                n = Mathf.Max(1, n);
+                weights.Add(n);
+                sum += n;
+            }
+            foreach (var w in weights) times.Add(clip.length * w / sum);
+            if (times.Count > 0) times[times.Count - 1] += voiceTailPad;
+            return times;
+        }
+
+        void PlayVoice(AudioClip clip, Transform anchor, Speaker speaker)
+        {
+            if (voiceSource == null) return;
+            voiceSource.Stop();
+            if (clip == null) return;
+            bool spatial = anchor != null && speaker != Speaker.Protagonist;
+            voiceSource.spatialBlend = spatial ? 1f : 0f;
+            if (spatial) voiceSource.transform.position = anchor.position;
+            voiceSource.clip = clip;
+            voiceSource.volume = voiceVolume;
+            voiceSource.Play();
         }
 
         void PreparePosition(Request r)
@@ -138,6 +194,8 @@ namespace Dokkaebi
 
         void LateUpdate()
         {
+            if (voiceSource != null && voiceSource.isPlaying && voiceSource.spatialBlend > 0f && follow != null)
+                voiceSource.transform.position = follow.position;
             if (label == null || !label.gameObject.activeSelf) return;
             Vector3 target = useFixed ? fixedPos : follow != null ? follow.position + Vector3.up * speakerOffset : label.transform.position;
             // 화자가 움직이면 부드럽게 따라간다 (Q-100)
