@@ -107,3 +107,6 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# 대사 음성 비교용 파일 (tools/tts/generate_dialogue.py --audition)
+/tools/tts/audition/
