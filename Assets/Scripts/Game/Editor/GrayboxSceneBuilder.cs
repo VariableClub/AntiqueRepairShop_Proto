@@ -1102,6 +1102,7 @@ namespace Dokkaebi.EditorTools
             if (d != null)
             {
                 UseEp01Video(d);
+                FillPlaceholderSounds(d);
                 return d;
             }
             d = ScriptableObject.CreateInstance<AntiqueData>();
@@ -1162,6 +1163,35 @@ namespace Dokkaebi.EditorTools
                 d.memoryLength = (float)ep01.length;
                 EditorUtility.SetDirty(d);
                 Debug.Log($"[씬 만들기] 기억 영상 → {MemoryVideoEP01} ({ep01.length:0.0}초)");
+            }
+        }
+
+        // 4주차 3·4행: 이미 있는 골동품 데이터의 빈 소리 칸을 자리표시 소리로 채운다 (MEM-01 겹 5개, MEM-03 영상 소리, 도깨비 목소리).
+        // 빈 칸만 채우므로 신주연 소리를 다른 이름으로 연결해 두면 덮어쓰지 않는다. 같은 경로에 덮어쓰면 연결이 그대로 유지된다
+        static void FillPlaceholderSounds(AntiqueData d)
+        {
+            bool changed = false;
+            AudioClip Fill(AudioClip cur, string file)
+            {
+                if (cur != null) return cur;
+                var c = AssetDatabase.LoadAssetAtPath<AudioClip>($"{AudioDir}/{file}");
+                if (c != null) changed = true;
+                return c;
+            }
+            if (d.memoryLayers == null || d.memoryLayers.Length < 5)
+            {
+                var old = d.memoryLayers ?? new AudioClip[0];
+                d.memoryLayers = new AudioClip[5];
+                System.Array.Copy(old, d.memoryLayers, old.Length);
+                changed = true;
+            }
+            for (int i = 0; i < 5; i++) d.memoryLayers[i] = Fill(d.memoryLayers[i], $"Memory_Bear_Layer{i + 1}_Placeholder.wav");
+            d.memoryAudio = Fill(d.memoryAudio, "Memory_Bear_Full_Placeholder.wav");
+            d.dokkaebiVoice = Fill(d.dokkaebiVoice, "Dokkaebi_Bear_Voice_Placeholder.wav");
+            if (changed)
+            {
+                EditorUtility.SetDirty(d);
+                Debug.Log($"[씬 만들기] 골동품 데이터 빈 소리 칸을 {AudioDir}의 자리표시 소리로 채움");
             }
         }
 
