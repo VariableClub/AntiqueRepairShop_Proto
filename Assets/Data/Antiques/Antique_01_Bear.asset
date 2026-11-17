@@ -131,10 +131,10 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   memoryLayersDamaged: []
-  memoryVideo: {fileID: 0}
+  memoryVideo: {fileID: 32900000, guid: 96f71c7e18744ce4835d8d9e8c988799, type: 3}
   memoryVideoAlpha: {fileID: 0}
   memoryAudio: {fileID: 0}
-  memoryLength: 20
+  memoryLength: 20.2
   storyboard:
   - {fileID: 0}
   - {fileID: 0}
