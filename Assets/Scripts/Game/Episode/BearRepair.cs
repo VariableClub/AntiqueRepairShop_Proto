@@ -90,7 +90,7 @@ namespace Dokkaebi
             bool rattle = buttonPull != null && !buttonPull.Extracted;
             if (rattle)
             {
-                Haptics.Send(bear.Hand, Haptics.RattleAmp, Haptics.RattleDur);
+                Haptics.Play(bear.Hand, Haptics.Rattle);
                 if (view != null) view.PulseBelly();
             }
             Debug.Log($"[살피기] {itemId}: 흔들기 {count}회{(rattle ? " (배 쪽에서 달그락)" : "")}");
@@ -131,7 +131,7 @@ namespace Dokkaebi
         public void Complete(int step)
         {
             if (step != CurrentStep) return;
-            Debug.Log($"[단계 완료] {itemId}: {step}단계{(RepairRecord.IsStepDamaged(itemId, step) ? " (손상된 단계 → 기억 소리는 갈라진 소리로, 3주차)" : "")}");
+            Debug.Log($"[단계 완료] {itemId}: {step}단계{(RepairRecord.IsStepDamaged(itemId, step) ? " (손상된 단계 → 기억 소리는 갈라진 소리로)" : "")}");
             if (view != null) view.OnStepCompleted(step);
             GameEvents.RaiseStepCompleted(itemId, step);
             StepCompleted?.Invoke(step);
@@ -151,14 +151,22 @@ namespace Dokkaebi
             {
                 case 1: Complete(1); break;
                 case 2: buttonPull.Extract(); notePull.Extract(); break;
-                case 3:
-                    for (int i = belly.Count; i < belly.required; i++) DebugInsertCotton();
-                    break;
+                case 3: StartCoroutine(DebugInsertAll()); break;
                 case 4:
                     var g = buttonPull.GetComponent<Grabbable>();
                     eye.Fit(g);
                     break;
                 case 5: stitch.DebugPassAll(); break;
+            }
+        }
+
+        // 솜 상자는 한 번에 한 덩어리만 내놓으므로, 새 덩어리가 생기기를 기다리며 채운다
+        IEnumerator DebugInsertAll()
+        {
+            for (int guard = 0; guard < 120 && CurrentStep == 3 && belly.Count < belly.required; guard++)
+            {
+                DebugInsertCotton();
+                yield return null;
             }
         }
 
