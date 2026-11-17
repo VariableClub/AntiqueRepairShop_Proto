@@ -136,12 +136,12 @@ MonoBehaviour:
   memoryAudio: {fileID: 0}
   memoryLength: 20.2
   storyboard:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 2800000, guid: e7696b97f8074b9b98d9a4058e091490, type: 3}
+  - {fileID: 2800000, guid: 5e9c97f8dd194ee58c3be43e6f5bd797, type: 3}
+  - {fileID: 2800000, guid: b31e0e31cd5f43948fa434019cbd0935, type: 3}
+  - {fileID: 2800000, guid: 47f85569c2c540f0a5daa7273b9e0999, type: 3}
+  - {fileID: 2800000, guid: 7be2149b8fe640fba9420fc9e16c5336, type: 3}
+  - {fileID: 2800000, guid: 14449b0c0a6e4762accc69805fbb229e, type: 3}
   emotionColor: {r: 1, g: 0.68, b: 0.28, a: 1}
   reactionLine: P01
   processLine: D02
