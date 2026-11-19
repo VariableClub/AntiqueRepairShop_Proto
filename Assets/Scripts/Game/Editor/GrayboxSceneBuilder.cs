@@ -1038,7 +1038,13 @@ namespace Dokkaebi.EditorTools
             m.mainTextureScale = scale;
             m.mainTextureOffset = offset;
             m.SetColor("_BaseColor", Color.white);
-            if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", 0.1f);
+            // 손글씨 종이 (UI-04): 스탠드가 도구함 바로 옆이라 반사광이 글씨를 덮어 안 읽힘 (11/19 실행 확인).
+            // 매끄러움 0, 반사 하이라이트·환경 반사를 꺼서 빛을 받아도 무광 종이처럼 보이게 한다
+            if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", 0f);
+            if (m.HasProperty("_SpecularHighlights")) m.SetFloat("_SpecularHighlights", 0f);
+            if (m.HasProperty("_EnvironmentReflections")) m.SetFloat("_EnvironmentReflections", 0f);
+            m.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
+            m.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
             EditorUtility.SetDirty(m);
             mats[name] = m;
             return m;

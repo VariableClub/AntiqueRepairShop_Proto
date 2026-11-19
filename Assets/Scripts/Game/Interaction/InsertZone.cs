@@ -44,8 +44,19 @@ namespace Dokkaebi
 
         public bool TryReceive(Grabbable g)
         {
-            if (!active || g == null || g.key != acceptKey || Count >= required) return false;
-            if (!Contains(g.transform.position)) return false;
+            if (g == null || g.key != acceptKey) return false;
+            if (!active || Count >= required)
+            {
+                Debug.Log($"[넣기] {itemId}: {g.name} 받지 않음 ({(!active ? "지금 단계가 아님" : $"이미 {Count}/{required}")})");
+                return false;
+            }
+            if (!Contains(g.transform.position))
+            {
+                // 솜이 한 번만 들어가는 문제 확인용 (11/19): 넣는 자리 밖에서 놓았는지, 얼마나 벗어났는지 남긴다
+                Vector3 p = transform.InverseTransformPoint(g.transform.position);
+                Debug.Log($"[넣기] {itemId}: {g.name} 넣는 자리 밖에서 놓음 (자리 기준 {p.x * 100f:0.0}, {p.y * 100f:0.0}, {p.z * 100f:0.0}cm, 허용 ±{halfExtents.x * 100f:0}·{halfExtents.y * 100f:0}·{halfExtents.z * 100f:0}cm)");
+                return false;
+            }
 
             Count++;
             Haptics.Play(g.LastHand, Haptics.Fit);

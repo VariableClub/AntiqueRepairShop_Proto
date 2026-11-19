@@ -37,9 +37,15 @@ namespace Dokkaebi
         // 새로 생긴 물건에 지금 상태의 잡기·물리 규칙을 적용한다
         public void ApplyGate()
         {
-            if (!gateKnown) return;
-            SetFrozen(gateFreeze);
-            SetAllowed(category == GrabCategory.Tool ? gateTools : category == GrabCategory.Item ? gateItems : gateParts);
+            // 복제로 생긴 물건(솜 덩어리)은 원본의 XRGrabInteractable 꺼짐 상태를 물려받는데, allowed 같은 내부 값은 기본값(true)으로 돌아간다.
+            // 그러면 SetAllowed(true)가 '이미 허용'으로 보고 건너뛰어 잡기가 꺼진 채 남는다 (두 번째 솜을 잡을 수 없음, 11/19 실행 확인).
+            // 상태 규칙 적용 끝에 잡기 켜기·끄기를 항상 다시 맞춘다
+            if (gateKnown)
+            {
+                SetFrozen(gateFreeze);
+                SetAllowed(category == GrabCategory.Tool ? gateTools : category == GrabCategory.Item ? gateItems : gateParts);
+            }
+            ApplyEnabled();
         }
 
         [Tooltip("놓인 자리 판정에 쓰는 이름 (예: button, cotton, tool_tweezers, bear)")]
