@@ -6,7 +6,8 @@ namespace Dokkaebi
     //  S0 시작 / S1 배 벌림(단추·쪽지 꺼냄) / S2 솜 채움 / S3 눈 채움 / S4 꿰맴 1~4 / S5 완성
     //  손상 A(2단계 억지): 배의 찢어진 곳이 더 벌어짐 / 손상 B(4단계 억지): 단추에 금
     //  손상 C(3단계 억지, 회색 박스 임시): 솜이 뭉쳐 눈 자리 표시가 틀어짐 (판정 위치는 그대로, Q-010)
-    // 회색 박스에서는 오브젝트 켜고 끄기와 크기·색 변화로 보여 주고, 11/20 신채연 모델로 바꾼다.
+    // 회색 박스에서는 오브젝트 켜고 끄기와 크기·색 변화로 보여 준다 (상태 표현 S0~S5·손상 A·B 구현은 4주차 REP-06, 강민우).
+    // 신주연 모델(11/17): S0~S4는 수선 전 모델(SM_Bear_Torn), S5 완성에서 수선 후 모델(SM_Bear_Repaired)로 바꾼다.
     public class BearView : MonoBehaviour
     {
         public string itemId = "bear";
@@ -18,8 +19,14 @@ namespace Dokkaebi
         public Vector3 fillFlatScale = new Vector3(0.12f, 0.12f, 0.015f);
         public Vector3 fillFullScale = new Vector3(0.13f, 0.13f, 0.07f);
         public Transform bellyPatch;      // 흔들 때 들썩이는 천 (Q-254 소리 없이도 보이는 단서)
+        [Tooltip("들썩일 때 커지는 비율. 회색 박스 배 천은 0.25, 모델 몸 전체를 들썩이면 작게")]
+        public float pulseAmount = 0.25f;
         public GameObject[] threads;      // 실 4개
         public GameObject seamClosed;     // 완성 봉합선
+
+        [Header("모델 (신주연, 비우면 회색 박스)")]
+        public GameObject modelBefore;    // 수선 전 (S0~S4)
+        public GameObject modelAfter;     // 수선 후 (S5)
 
         [Header("눈")]
         public GameObject emptyEyeMark;
@@ -39,6 +46,7 @@ namespace Dokkaebi
             if (tearLarge != null) tearLarge.SetActive(false);
             if (seamClosed != null) seamClosed.SetActive(false);
             if (buttonCrack != null) buttonCrack.SetActive(false);
+            if (modelAfter != null) modelAfter.SetActive(false);
         }
 
         void OnEnable() { GameEvents.ForceDamaged += OnForceDamaged; }
@@ -48,7 +56,7 @@ namespace Dokkaebi
         {
             if (bellyPatch == null || pulse <= 0f) return;
             pulse = Mathf.Max(0f, pulse - Time.deltaTime * 4f);
-            bellyPatch.localScale = patchBaseScale * (1f + 0.25f * Mathf.Sin(pulse * Mathf.PI));
+            bellyPatch.localScale = patchBaseScale * (1f + pulseAmount * Mathf.Sin(pulse * Mathf.PI));
         }
 
         public void PulseBelly() { pulse = 1f; }
@@ -80,6 +88,13 @@ namespace Dokkaebi
                     if (tearSmall != null) tearSmall.SetActive(false);
                     if (tearLarge != null && !RepairRecord.IsStepDamaged(itemId, 2)) tearLarge.SetActive(false);
                     if (seamClosed != null) seamClosed.SetActive(true);
+                    if (modelAfter != null)
+                    {
+                        // 수선 후 모델은 배가 닫혀 있다. 배 속 솜은 감추고, 손상 A(더 벌어진 자국)는 남긴다
+                        if (modelBefore != null) modelBefore.SetActive(false);
+                        modelAfter.SetActive(true);
+                        if (bellyFill != null) bellyFill.gameObject.SetActive(false);
+                    }
                     SetState("S5 완성");
                     break;
             }

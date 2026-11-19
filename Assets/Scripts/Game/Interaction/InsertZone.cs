@@ -48,7 +48,7 @@ namespace Dokkaebi
             if (!Contains(g.transform.position)) return false;
 
             Count++;
-            Haptics.Send(g.LastHand, Haptics.FitAmp, Haptics.FitDur);
+            Haptics.Play(g.LastHand, Haptics.Fit);
             Debug.Log($"[넣기] {itemId}: {acceptKey} {Count}/{required}");
             GameEvents.RaisePartFitted(itemId, acceptKey);
             g.Lock(transform, g.transform.position, g.transform.rotation);
@@ -73,7 +73,7 @@ namespace Dokkaebi
             var result = push.Tick(pushTarget, true, true, Time.deltaTime);
             if (result == PushForceJudge.Result.Warn && Time.time >= nextHaptic)
             {
-                Haptics.Send(pushTarget.Hand, Mathf.Lerp(0.15f, 0.8f, push.Ratio), 0.05f);
+                Haptics.Send(pushTarget.Hand, Haptics.WarnAmplitude(push.Ratio), Haptics.WarnDur);
                 nextHaptic = Time.time + 0.05f;
                 GameEvents.RaiseForceWarning(itemId, step, push.Ratio);
             }
@@ -81,7 +81,7 @@ namespace Dokkaebi
             {
                 nextDamage = Time.time + damageCooldown;
                 string reason = $"솜을 쑤셔 넣음 ({push.Describe()})";
-                Haptics.Send(pushTarget.Hand, Haptics.DamageAmp, Haptics.DamageDur);
+                Haptics.Play(pushTarget.Hand, Haptics.Damage);
                 pushTarget.ForceRelease();
                 RepairRecord.MarkDamage(itemId, step, reason);
                 GameEvents.RaiseForceDamaged(itemId, step, reason);

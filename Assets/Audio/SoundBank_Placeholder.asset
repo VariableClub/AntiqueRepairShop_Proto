@@ -1,0 +1,105 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d6d8b2999bd4438e87ec5227e0ea964, type: 3}
+  m_Name: SoundBank_Placeholder
+  m_EditorClassIdentifier: Assembly-CSharp::Dokkaebi.SoundBank
+  entries:
+  - key: 0
+    clip: {fileID: 8300000, guid: ce96055f61a04468aba570aa128d411f, type: 3}
+    volume: 0.8
+    pitchJitter: 0.03
+    spatial: 1
+  - key: 1
+    clip: {fileID: 8300000, guid: 7f79b6000f4548cabfab1233f3178392, type: 3}
+    volume: 0.8
+    pitchJitter: 0.03
+    spatial: 1
+  - key: 2
+    clip: {fileID: 8300000, guid: 3a724ae681704875b6d505022d8584c8, type: 3}
+    volume: 0.8
+    pitchJitter: 0.03
+    spatial: 1
+  - key: 3
+    clip: {fileID: 8300000, guid: 27e334d26e5849a5b265a47d85898130, type: 3}
+    volume: 0.7
+    pitchJitter: 0
+    spatial: 1
+  - key: 4
+    clip: {fileID: 8300000, guid: 9aad8b0d577340d7bb723394212c3afc, type: 3}
+    volume: 0.9
+    pitchJitter: 0.03
+    spatial: 1
+  - key: 5
+    clip: {fileID: 8300000, guid: db35b4a495a64874ad46718ed92c71a9, type: 3}
+    volume: 0.9
+    pitchJitter: 0.03
+    spatial: 1
+  - key: 6
+    clip: {fileID: 8300000, guid: 81baa3b10cab4b6a9a22cd49a0b31547, type: 3}
+    volume: 0.9
+    pitchJitter: 0.03
+    spatial: 1
+  - key: 7
+    clip: {fileID: 8300000, guid: 89513e3c225b41c78e21f7d6315da878, type: 3}
+    volume: 0.6
+    pitchJitter: 0.03
+    spatial: 1
+  - key: 8
+    clip: {fileID: 8300000, guid: 55ec93500c104f78aa635d526689f745, type: 3}
+    volume: 0.6
+    pitchJitter: 0
+    spatial: 0.5
+  - key: 9
+    clip: {fileID: 8300000, guid: 205efda03746490887f37fe6bee3d45c, type: 3}
+    volume: 0.8
+    pitchJitter: 0
+    spatial: 0.5
+  - key: 10
+    clip: {fileID: 8300000, guid: a672c3cd8216442d9b021fe7c8e36d9c, type: 3}
+    volume: 0.8
+    pitchJitter: 0
+    spatial: 1
+  - key: 11
+    clip: {fileID: 8300000, guid: 6cc6b224ef7f43d487af30931ce4f0fe, type: 3}
+    volume: 0.7
+    pitchJitter: 0
+    spatial: 1
+  - key: 12
+    clip: {fileID: 8300000, guid: 04448695ce7743c3bbc97aaa2edc9c91, type: 3}
+    volume: 0.7
+    pitchJitter: 0
+    spatial: 1
+  - key: 13
+    clip: {fileID: 8300000, guid: d0dec84f02904160950871d1885a5b19, type: 3}
+    volume: 0.6
+    pitchJitter: 0
+    spatial: 1
+  - key: 14
+    clip: {fileID: 8300000, guid: 697d30f5f8b740eb9fc45d1b50974c42, type: 3}
+    volume: 0.7
+    pitchJitter: 0
+    spatial: 1
+  - key: 15
+    clip: {fileID: 8300000, guid: 0a3df123fcb64aef97dcd3872b325d1e, type: 3}
+    volume: 0.8
+    pitchJitter: 0.03
+    spatial: 1
+  - key: 16
+    clip: {fileID: 8300000, guid: 62a546f747ee4f5ebfcdf3b5c7c93ecd, type: 3}
+    volume: 0.8
+    pitchJitter: 0.03
+    spatial: 1
+  - key: 17
+    clip: {fileID: 8300000, guid: 78412f1fe28344ada70016674429ea3e, type: 3}
+    volume: 0.9
+    pitchJitter: 0
+    spatial: 0
