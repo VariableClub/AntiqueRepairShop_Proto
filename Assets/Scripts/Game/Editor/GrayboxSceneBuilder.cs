@@ -45,6 +45,10 @@ namespace Dokkaebi.EditorTools
         const string StuffingFbx = "Assets/Art/Models/SM_Bear_Stuffing_Interactive.fbx"; // 솜 덩어리
         const string DriverFbx = "Assets/Art/Models/SM_Tool_Driver.fbx";               // 프롤로그 작은 드라이버
         const string MemoryVideoEP01 = "Assets/Art/Videos/EP01_Memory_Temp.mp4";        // EP01 임시 기억 영상 (1912×1080, 20.2초, 검은 배경 아님)
+        // MEM-06 투명 배경 영상 확인용: EP01 영상에 가장자리 12% 페이드 알파를 넣은 VP8 webm (1280×720, 30fps, 11/19).
+        // 켜 두면 기억 영상이 투명 배경 영상 → (준비 실패 시) EP01 원본 순서로 재생된다. Quest에서 끊기면 끄고 씬을 다시 만든다
+        const string AlphaTestVideo = "Assets/Video/Test/EP01_Memory_Temp_AlphaTest.webm";
+        static bool useAlphaTestVideo = true;
         // 임포트한 곰 인형 모델이 배를 +z, 머리를 +y로 두지 않으면 여기서 돌린다
         static readonly Vector3 BearModelEuler = Vector3.zero;
         [Tooltip("도깨비 베이스 모델을 임시 연출에 쓸지 (없으면 기둥)")]
@@ -512,6 +516,8 @@ namespace Dokkaebi.EditorTools
         static readonly Vector3 BearButtonPosFallback = new Vector3(-0.004f, 0.041f, 0.040f); // 모델 안 단추 자리
         static readonly Vector3 BearNotePosFallback = new Vector3(-0.009f, 0.089f, 0.019f);   // 모델 안 쪽지 자리
         const float BearDepthHalf = 0.084f; // 등까지 거리 (눕혔을 때 매트 위로 띄울 높이)
+        // 쪽지 충돌 두께. 보이는 종이(1mm)보다 두껍게 잡아 작업대에 파고들지 않게 한다 (작업대 위 약 5mm 뜸, 11/19)
+        const float NoteColliderThickness = 0.012f;
 
         static BearRepair BuildBear(Transform set, Transform table, out Transform spawn)
         {
@@ -655,7 +661,9 @@ namespace Dokkaebi.EditorTools
             if (noteMesh != null) { folded = noteMesh.gameObject; Paint(folded, paper); }
             else folded = NoCol(Child(PrimitiveType.Cube, "쪽지 (접힘)", note, Vector3.zero, Quaternion.identity, new Vector3(0.06f, 0.006f, 0.06f), paper));
             var nb = BoundsIn(note, folded);
-            AddBox(note, Vector3.Max(nb.size, new Vector3(0.03f, 0.012f, 0.03f))).center = nb.center;
+            AddBox(note, Vector3.Max(nb.size, new Vector3(0.03f, NoteColliderThickness, 0.03f))).center = nb.center;
+            // 얇고 가벼운 종이(10g)는 빠르게 놓으면 작업대에 파고든다 (4주차 실행 확인, 11/19). 연속 충돌 판정으로 바꾼다
+            note.GetComponent<Rigidbody>().collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             var notePull = note.gameObject.AddComponent<PullOutJudge>();
             notePull.origin = noteOrigin;
             notePull.step = 2;
@@ -674,18 +682,25 @@ namespace Dokkaebi.EditorTools
             unfolded.transform.localPosition = nb.center;
             Material leftMat = noteTex != null ? TexturedMat("쪽지 N01 왼쪽", noteTex, new Vector2(0.5f, 1f), Vector2.zero) : paper;
             Material rightMat = noteTex != null ? TexturedMat("쪽지 N01 오른쪽", noteTex, new Vector2(0.5f, 1f), new Vector2(0.5f, 0f)) : paper;
-            NoCol(Child(PrimitiveType.Quad, "왼쪽 쪽", unfolded.transform, new Vector3(-halfW / 2f, 0.0005f, 0f), Quaternion.Euler(90f, 0f, 0f), new Vector3(halfW, pageH, 1f), leftMat));
-            NoCol(Child(PrimitiveType.Quad, "왼쪽 쪽 뒷면", unfolded.transform, new Vector3(-halfW / 2f, 0f, 0f), Quaternion.Euler(-90f, 0f, 0f), new Vector3(halfW, pageH, 1f), paper));
+            // 종이 두께 1mm 판 위아래에 손글씨를 붙인다. 손에 쥔 방향에 따라 뒷면을 보면 글씨가 없다고 느끼므로(11/19 실행 확인)
+            // 뒷면에도 글씨를 넣는다: 쪽지를 세로축으로 뒤집으면 왼쪽·오른쪽 쪽이 바뀌므로 뒷면은 반대쪽 절반을 좌우 반대로 붙인다
+            const float sheet = 0.001f, face = sheet / 2f + 0.0002f;
+            var frontFace = Quaternion.Euler(90f, 0f, 0f);       // 앞면(위, +Y), 글자 오른쪽 = +X
+            var backFace = Quaternion.Euler(-90f, 180f, 0f);     // 뒷면(아래, -Y), 글자 오른쪽 = -X (뒤집어 본 사람 기준)
+            NoCol(Child(PrimitiveType.Cube, "왼쪽 쪽 종이", unfolded.transform, new Vector3(-halfW / 2f, 0f, 0f), Quaternion.identity, new Vector3(halfW, sheet, pageH), paper));
+            NoCol(Child(PrimitiveType.Quad, "왼쪽 쪽", unfolded.transform, new Vector3(-halfW / 2f, face, 0f), frontFace, new Vector3(halfW, pageH, 1f), leftMat));
+            NoCol(Child(PrimitiveType.Quad, "왼쪽 쪽 뒷면 (글씨 뒷절반)", unfolded.transform, new Vector3(-halfW / 2f, -face, 0f), backFace, new Vector3(halfW, pageH, 1f), rightMat));
             var hingeN = new GameObject("오른쪽 쪽 경첩").transform;
             hingeN.SetParent(unfolded.transform, false);
-            hingeN.localPosition = new Vector3(0f, 0.001f, 0f);
-            NoCol(Child(PrimitiveType.Quad, "오른쪽 쪽", hingeN, new Vector3(halfW / 2f, 0f, 0f), Quaternion.Euler(90f, 0f, 0f), new Vector3(halfW, pageH, 1f), rightMat));
-            NoCol(Child(PrimitiveType.Quad, "오른쪽 쪽 뒷면", hingeN, new Vector3(halfW / 2f, -0.0005f, 0f), Quaternion.Euler(-90f, 0f, 0f), new Vector3(halfW, pageH, 1f), paper));
+            hingeN.localPosition = new Vector3(0f, 0.0016f, 0f); // 닫혀 있을 때 왼쪽 쪽 아래로 접혀 들어가도 겹치지 않게
+            NoCol(Child(PrimitiveType.Cube, "오른쪽 쪽 종이", hingeN, new Vector3(halfW / 2f, 0f, 0f), Quaternion.identity, new Vector3(halfW, sheet, pageH), paper));
+            NoCol(Child(PrimitiveType.Quad, "오른쪽 쪽", hingeN, new Vector3(halfW / 2f, face, 0f), frontFace, new Vector3(halfW, pageH, 1f), rightMat));
+            NoCol(Child(PrimitiveType.Quad, "오른쪽 쪽 뒷면 (글씨 앞절반)", hingeN, new Vector3(halfW / 2f, -face, 0f), backFace, new Vector3(halfW, pageH, 1f), leftMat));
             var unfold = note.gameObject.AddComponent<NoteUnfold>();
             unfold.folded = folded;
             unfold.unfoldedRoot = unfolded;
             unfold.flap = hingeN;
-            unfold.unfoldedCollider = new Vector3(halfW * 2f, 0.006f, pageH);
+            unfold.unfoldedCollider = new Vector3(halfW * 2f, NoteColliderThickness, pageH);
 
             // 바늘꽂이와 실 꿴 바늘 (5단계). 바늘 끝이 구멍에 들어가야 한다
             Prim(PrimitiveType.Cube, "바늘꽂이", table, new Vector3(-0.33f, H + 0.035f, 0.62f), new Vector3(0.05f, 0.03f, 0.05f), Mat("바늘꽂이", new Color(0.7f, 0.2f, 0.25f)), true);
@@ -1039,7 +1054,7 @@ namespace Dokkaebi.EditorTools
         // 영상: 투명 배경 webm은 알파를 살리고 변환하지 않는다 (MEM-06). 손글씨는 밉맵·클램프
         static void ConfigureMediaImporters()
         {
-            foreach (var path in new[] { $"{VideoDir}/Memory_Bear_Placeholder_Alpha.webm", $"{VideoDir}/Memory_Bear_Placeholder.mp4", MemoryVideoEP01 })
+            foreach (var path in new[] { $"{VideoDir}/Memory_Bear_Placeholder_Alpha.webm", $"{VideoDir}/Memory_Bear_Placeholder.mp4", MemoryVideoEP01, AlphaTestVideo })
             {
                 if (AssetImporter.GetAtPath(path) is VideoClipImporter vi)
                 {
@@ -1158,6 +1173,10 @@ namespace Dokkaebi.EditorTools
             bool changed = false;
             if (d.memoryVideo == null || AssetDatabase.GetAssetPath(d.memoryVideo).Contains("Placeholder")) { d.memoryVideo = ep01; changed = true; }
             if (d.memoryVideoAlpha != null && AssetDatabase.GetAssetPath(d.memoryVideoAlpha).Contains("Placeholder")) { d.memoryVideoAlpha = null; changed = true; }
+            // MEM-06 확인용 투명 배경 영상: 켜면 빈 칸에 넣고, 끄면 확인용 영상일 때만 뺀다 (신주연 투명 영상을 넣어 두면 건드리지 않음)
+            var alphaTest = AssetDatabase.LoadAssetAtPath<VideoClip>(AlphaTestVideo);
+            if (useAlphaTestVideo && alphaTest != null && d.memoryVideoAlpha == null) { d.memoryVideoAlpha = alphaTest; changed = true; }
+            if (!useAlphaTestVideo && d.memoryVideoAlpha != null && d.memoryVideoAlpha == alphaTest) { d.memoryVideoAlpha = null; changed = true; }
             if (changed)
             {
                 d.memoryLength = (float)ep01.length;
