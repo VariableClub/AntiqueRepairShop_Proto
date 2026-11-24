@@ -632,10 +632,13 @@ namespace Dokkaebi.EditorTools
             eye.transform.localPosition = BearEyePos + BearEyeNormal * 0.004f; // 단추(두께 1.5cm) 가운데가 얼굴 위 4mm
             eye.transform.localRotation = eyeRot;
             eye.acceptKey = "button";
-            eye.positionTolerance = 0.015f;
+            // 11/25 실행 확인 '단추가 생각보다 잘 안 붙음' → 허용 범위 넓힘 (이전: 위치 1.5cm, 기울기 20°, 한쪽 면만, 감지 5cm).
+            // 레벨 명세 5장 값과 달라지므로 명세도 고칠 것. 플레이테스트(5주차 3행)에서 다시 조정
+            eye.positionTolerance = 0.025f;
             eye.angleMode = AngleMode.Tilt;
-            eye.angleTolerance = 20f;
-            eye.detectRadius = 0.05f;
+            eye.angleTolerance = 35f;
+            eye.tiltTwoSided = true;
+            eye.detectRadius = 0.07f;
             eye.itemId = "bear";
             eye.step = 4;
             eye.forceJudge = true;

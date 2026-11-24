@@ -27,6 +27,8 @@ namespace Dokkaebi
         public float positionTolerance = 0.02f;
         public AngleMode angleMode = AngleMode.None;
         public float angleTolerance = 20f;
+        [Tooltip("Tilt일 때 앞뒷면을 같게 본다 (뒤집혀 있어도 결합하고, 결합할 때 앞면이 바깥을 보게 돌려 놓는다). 11/25 단추가 잘 안 붙어 추가")]
+        public bool tiltTwoSided;
         [Tooltip("이 거리 안에서 놓으면 이 자리에 놓으려던 것으로 본다")]
         public float detectRadius = 0.06f;
         [Tooltip("틀리면 튕기고 오조작으로 센다")]
@@ -80,7 +82,9 @@ namespace Dokkaebi
             switch (angleMode)
             {
                 case AngleMode.Tilt:
-                    return Vector3.Angle(part.up, transform.up) <= angleTolerance;
+                    float t = Vector3.Angle(part.up, transform.up);
+                    if (tiltTwoSided) t = Mathf.Min(t, 180f - t);
+                    return t <= angleTolerance;
                 case AngleMode.AxisLine:
                     float a = Vector3.Angle(part.forward, transform.forward);
                     return Mathf.Min(a, 180f - a) <= angleTolerance;
@@ -137,7 +141,7 @@ namespace Dokkaebi
                     bool flipped = Vector3.Angle(part.forward, transform.forward) > 90f;
                     return flipped ? transform.rotation * Quaternion.Euler(0f, 180f, 0f) : transform.rotation;
                 default:
-                    // 위축만 자리에 맞추고 돌림은 유지 (둥근 부품)
+                    // 위축만 자리에 맞추고 돌림은 유지 (둥근 부품). 앞뒷면을 같게 보는 자리면 뒤집혀 들어와도 앞면이 바깥을 보게 된다
                     return Quaternion.FromToRotation(part.up, transform.up) * part.rotation;
             }
         }
