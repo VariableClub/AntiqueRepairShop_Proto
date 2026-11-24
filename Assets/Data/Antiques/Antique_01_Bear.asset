@@ -21,7 +21,7 @@ MonoBehaviour:
   damagedModels: []
   dokkaebiFeature: "\uB2E8\uCD94 \uB208"
   requestLine: D01
-  dokkaebiVoice: {fileID: 0}
+  dokkaebiVoice: {fileID: 8300000, guid: 4ba240b5aaf3fc64c8a851cafc8c8ab3, type: 3}
   steps:
   - name: "\uC0B4\uD53C\uAE30"
     action: 0
@@ -125,15 +125,15 @@ MonoBehaviour:
       note: 
   clueNote: "2\uB2E8\uACC4 \uCABD\uC9C0 \"\uC870\uAE08 \uB2A6\uC5B4\uB3C4 \uAF2D \uB370\uB9AC\uB7EC \uAC08\uAC8C.\" (N01)"
   memoryLayers:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 8300000, guid: c54d96c5b169aa64b9ad34878ea53fbe, type: 3}
+  - {fileID: 8300000, guid: 61e806ac26fbec74bb6c55ba02fcf2fe, type: 3}
+  - {fileID: 8300000, guid: 463a7cf7481d8b24f983e6f5ea7e5b31, type: 3}
+  - {fileID: 8300000, guid: 95c6867c981f48c4cb47380d20b742d0, type: 3}
+  - {fileID: 8300000, guid: 0240ea488b1efc143b70e41e377b9c80, type: 3}
   memoryLayersDamaged: []
   memoryVideo: {fileID: 32900000, guid: 96f71c7e18744ce4835d8d9e8c988799, type: 3}
   memoryVideoAlpha: {fileID: 0}
-  memoryAudio: {fileID: 0}
+  memoryAudio: {fileID: 8300000, guid: 0bbf2b70727baf54cbcf0f83b4ec02c6, type: 3}
   memoryLength: 20.2
   storyboard:
   - {fileID: 2800000, guid: e7696b97f8074b9b98d9a4058e091490, type: 3}
