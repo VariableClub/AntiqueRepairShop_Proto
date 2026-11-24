@@ -17,7 +17,7 @@ namespace Dokkaebi
     // 도깨비 등장·변신, 기억 영상, 밤 전환은 정해진 길이 + 5초 안에 끝나지 않으면 강제로 넘긴다 (21-4).
     // 교수님 피드백 (11/24) 반영:
     //  - 누구의 기억인지: 기억 영상 직전에 물건(곰 인형)이 1인칭으로 "내가 기억하는 그 아이"라고 알린다 (M01). 영상은 작업대 너머 화면으로
-    //    '바깥에서 바라보는' 구도를 유지한다. 주인공 자신의 기억(셋째 밤)과의 차이는 Docs/기억_시점_구분_설계.md
+    //    '바깥에서 바라보는' 구도를 유지한다. 주인공 자신의 기억(셋째 밤)과의 차이는 Docs/교수님_피드백_대응_1124.md 「피드백 1」 설계 원칙 표
     //  - 기억의 결말: 처리 자리에 놓인 뒤 바로 넘어가지 않고, 놓인 모습 확인 → 마무리 대사(C01) → 수선 장부 기록 → 밤 전환 순서로 끝낸다
     public class GameFlow : MonoBehaviour
     {
@@ -275,7 +275,29 @@ namespace Dokkaebi
             bool damaged = RepairRecord.IsDamaged(data.itemId);
             string journal = damaged && !string.IsNullOrEmpty(data.journalDamaged) ? data.journalDamaged : data.journalNormal;
             string process = !string.IsNullOrEmpty(data.processNote) ? data.processNote : AntiqueData.ProcessName(data.process);
-            return $"{data.nightLabel} · {data.displayName}\n{journal}\n{process}";
+            // 억지 손상이 있었는데 손상 문장(journalDamaged, 24장 문장 틀·신주연)이 아직 비어 있으면,
+            // 단계 데이터의 '보이는 결과'(damageShape, 11장 표)를 그대로 한 줄 남긴다.
+            // 손상해도 정상과 같은 기록이 나오면 '무엇을 남겼는지'가 읽히지 않기 때문 (교수님 피드백 2·3, 11/24)
+            string trace = damaged && string.IsNullOrEmpty(data.journalDamaged) ? DamageTrace(data) : "";
+            return string.IsNullOrEmpty(trace)
+                ? $"{data.nightLabel} · {data.displayName}\n{journal}\n{process}"
+                : $"{data.nightLabel} · {data.displayName}\n{journal}\n{trace}\n{process}";
+        }
+
+        // 손상된 단계의 보이는 결과를 모은다. "찢어진 배가 더 벌어짐 (손상 A)" → "찢어진 배가 더 벌어짐" (괄호 속 분류 이름은 장부에 쓰지 않는다)
+        static string DamageTrace(AntiqueData data)
+        {
+            if (data.steps == null) return "";
+            var parts = new System.Collections.Generic.List<string>();
+            foreach (int step in RepairRecord.DamagedSteps(data.itemId))
+            {
+                var st = data.Step(step); // 단계 번호는 1부터 (2단계 = 꺼내기)
+                string shape = st != null ? st.damageShape : null;
+                if (string.IsNullOrEmpty(shape)) continue;
+                int paren = shape.IndexOf(" (");
+                parts.Add(paren > 0 ? shape.Substring(0, paren) : shape);
+            }
+            return parts.Count == 0 ? "" : "남은 흔적: " + string.Join(", ", parts);
         }
 
         // 장부 글자가 서서히 나타나고 잠시 머문다. 글자는 지우지 않아 다음 밤에도 남는다 (10장 '밤이 바뀌어도 초기화하지 않는다')
