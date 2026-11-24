@@ -45,8 +45,8 @@ MonoBehaviour:
     voice: {fileID: 8300000, guid: 2addbdf841637094b8cea68be250362e, type: 3}
   - id: M01
     speaker: 0
-    text: "\u2026\uBCF4\uC5EC \uC904\uAC8C. \uB0B4\uAC00 \uAE30\uC5B5\uD558\uB294 \uADF8 \uC544\uC774\uC57C."
-    next: "\uAC00\uC548(11/24). \uB300\uC0AC \uB05D \u2192 \uAE30\uC5B5 \uC601\uC0C1"
+    text: "\uC774\uAC74 \uADF8 \uC544\uC774\uC758 \uAE30\uC5B5\uC774\uC57C. \uB098\uB97C \uC548\uACE0 \uD560\uBA38\uB2C8\uB97C \uAE30\uB2E4\uB9AC\uB358 \uC544\uC774."
+    next: "\uAC00\uC548(11/25, \uB204\uAD6C\uC758 \uAE30\uC5B5\uC778\uC9C0 \uB3C4\uAE68\uBE44\uAC00 \uC9C1\uC811 \uB9D0\uD568). \uB300\uC0AC \uB05D \u2192 \uAE30\uC5B5 \uC601\uC0C1"
     voice: {fileID: 0}
   - id: C01
     speaker: 1

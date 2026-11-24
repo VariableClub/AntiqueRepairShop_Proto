@@ -1538,7 +1538,8 @@ namespace Dokkaebi.EditorTools
                 t.lines.Add(new DialogueLine { id = id, speaker = sp, text = text, next = next });
                 added = true;
             }
-            Add("M01", Speaker.Dokkaebi, "…보여 줄게. 내가 기억하는 그 아이야.", "가안(11/24). 대사 끝 → 기억 영상");
+            // M01 문장 변경(11/25): "내가 기억하는 그 아이야"는 누구의 기억인지 분명하지 않다는 실행 확인 → 기억 주인(그 아이)을 직접 말한다
+            Add("M01", Speaker.Dokkaebi, "이건 그 아이의 기억이야. 나를 안고 할머니를 기다리던 아이.", "가안(11/25, 누구의 기억인지 도깨비가 직접 말함). 대사 끝 → 기억 영상");
             Add("C01", Speaker.Protagonist, "이제 그 아이에게 돌아가렴.", "가안(11/24). 반환 선반에 놓은 뒤 → 수선 장부 → 밤 전환");
             if (added) { EditorUtility.SetDirty(t); Debug.Log("[씬 만들기] 대사 표에 피드백 대사(M01·C01, 가안) 추가"); }
         }

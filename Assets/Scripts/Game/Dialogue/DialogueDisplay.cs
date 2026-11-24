@@ -36,6 +36,14 @@ namespace Dokkaebi
         public float protagonistPitchDown = 40f;
         public float protagonistPitchUp = 15f;
 
+        [Header("시야 밖 대사 따라오기 (11/25 실행 확인: 대사가 고정이라 다른 곳을 보면 안 보임)")]
+        [Tooltip("화자 없는 대사: 보는 방향에서 이 각도(도)보다 벗어나면 시야 앞으로 따라온다")]
+        public float followViewAngle = 30f;
+        [Tooltip("화자 있는 대사: 화자가 보는 방향에서 이 각도(도)보다 벗어나 있으면 글자만 시야 앞으로 옮긴다. 화자를 다시 보면 화자 옆으로 돌아간다")]
+        public float anchorViewAngle = 40f;
+        [Tooltip("따라올 때의 부드러움. 클수록 빨리 따라온다 (머리에 붙은 듯 딱 붙으면 멀미가 나므로 천천히)")]
+        public float followSharpness = 6f;
+
         [Header("도깨비 고유음 (NPC-04)")]
         [Tooltip("도깨비 대사 동안 반복되는 물건 고유음. 비우면 소리 없이 글자만 나온다. GameFlow가 밤 시작 때 골동품 데이터의 소리로 채운다")]
         public AudioClip dokkaebiSound;
@@ -58,6 +66,7 @@ namespace Dokkaebi
         Transform follow;
         Vector3 fixedPos;
         bool useFixed;
+        bool snapNext;
         int issued, finished;
         bool running;
 
@@ -240,17 +249,29 @@ namespace Dokkaebi
             {
                 if (cam != null)
                 {
-                    // 작업대를 내려다보고 있어도 시야 안에 들어오게, 보는 방향의 위아래 기울기를 따라간다
-                    Vector3 flat = Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up);
-                    Vector3 fwd = flat.sqrMagnitude < 0.01f ? Vector3.forward : flat.normalized;
-                    float pitch = Mathf.Clamp(Mathf.Asin(Mathf.Clamp(cam.transform.forward.y, -1f, 1f)) * Mathf.Rad2Deg, -protagonistPitchDown, protagonistPitchUp);
-                    Vector3 dir = Quaternion.AngleAxis(-pitch, Vector3.Cross(Vector3.up, fwd)) * fwd;
-                    fixedPos = cam.transform.position + dir * protagonistDistance + Vector3.down * protagonistDrop;
+                    fixedPos = ViewPos(cam);
                     useFixed = true;
                 }
             }
             else follow = r.anchor;
+            snapNext = true; // 새 대사는 제자리에 바로 뜬다. 따라오기는 그다음부터
             LateUpdate();
+        }
+
+        // 보는 방향 앞 자리. 작업대를 내려다보고 있어도 시야 안에 들어오게, 보는 방향의 위아래 기울기를 따라간다
+        Vector3 ViewPos(Camera cam)
+        {
+            Vector3 flat = Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up);
+            Vector3 fwd = flat.sqrMagnitude < 0.01f ? Vector3.forward : flat.normalized;
+            float pitch = Mathf.Clamp(Mathf.Asin(Mathf.Clamp(cam.transform.forward.y, -1f, 1f)) * Mathf.Rad2Deg, -protagonistPitchDown, protagonistPitchUp);
+            Vector3 dir = Quaternion.AngleAxis(-pitch, Vector3.Cross(Vector3.up, fwd)) * fwd;
+            return cam.transform.position + dir * protagonistDistance + Vector3.down * protagonistDrop;
+        }
+
+        static bool OutOfView(Camera cam, Vector3 pos, float maxAngle)
+        {
+            Vector3 to = pos - cam.transform.position;
+            return to.sqrMagnitude > 1e-4f && Vector3.Angle(cam.transform.forward, to) > maxAngle;
         }
 
         void LateUpdate()
@@ -260,10 +281,27 @@ namespace Dokkaebi
             if (speakerSource != null && speakerSource.isPlaying && speakerSource.spatialBlend > 0f && follow != null)
                 speakerSource.transform.position = follow.position;
             if (label == null || !label.gameObject.activeSelf) return;
-            Vector3 target = useFixed ? fixedPos : follow != null ? follow.position + Vector3.up * speakerOffset : label.transform.position;
-            // 화자가 움직이면 부드럽게 따라간다 (Q-100)
-            label.transform.position = useFixed ? target : Vector3.Lerp(label.transform.position, target, 1f - Mathf.Exp(-12f * Time.deltaTime));
             var cam = Camera.main;
+            Vector3 target;
+            float sharp = 12f; // 화자가 움직이면 부드럽게 따라간다 (Q-100)
+            if (useFixed)
+            {
+                // 화자 없는 대사: 보던 곳을 벗어나면 시야 앞으로 천천히 따라온다 (11/25)
+                if (cam != null && !snapNext && OutOfView(cam, label.transform.position, followViewAngle)) fixedPos = ViewPos(cam);
+                target = fixedPos;
+                sharp = followSharpness;
+            }
+            else if (follow != null)
+            {
+                // 화자 있는 대사: 기본은 화자 옆(12장 '물건 옆에 글자로 뜬다'). 화자가 시야 밖이면 글자만 시야 앞으로 (11/25)
+                Vector3 anchorPos = follow.position + Vector3.up * speakerOffset;
+                bool away = cam != null && OutOfView(cam, anchorPos, anchorViewAngle);
+                target = away ? ViewPos(cam) : anchorPos;
+                if (away) sharp = followSharpness;
+            }
+            else target = label.transform.position;
+            label.transform.position = snapNext ? target : Vector3.Lerp(label.transform.position, target, 1f - Mathf.Exp(-sharp * Time.deltaTime));
+            snapNext = false;
             if (cam != null)
             {
                 Vector3 dir = label.transform.position - cam.transform.position;
