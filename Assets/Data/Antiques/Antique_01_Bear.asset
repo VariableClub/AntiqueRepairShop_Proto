@@ -132,7 +132,7 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 0240ea488b1efc143b70e41e377b9c80, type: 3}
   memoryLayersDamaged: []
   memoryVideo: {fileID: 32900000, guid: 96f71c7e18744ce4835d8d9e8c988799, type: 3}
-  memoryVideoAlpha: {fileID: 0}
+  memoryVideoAlpha: {fileID: 32900000, guid: d33ca3f84c3547088b81a7b01499a547, type: 3}
   memoryAudio: {fileID: 8300000, guid: 0bbf2b70727baf54cbcf0f83b4ec02c6, type: 3}
   memoryLength: 20.2
   storyboard:
@@ -143,9 +143,12 @@ MonoBehaviour:
   - {fileID: 2800000, guid: 7be2149b8fe640fba9420fc9e16c5336, type: 3}
   - {fileID: 2800000, guid: 14449b0c0a6e4762accc69805fbb229e, type: 3}
   emotionColor: {r: 1, g: 0.68, b: 0.28, a: 1}
+  memoryOwnerLine: M01
   reactionLine: P01
   processLine: D02
   process: 0
+  closingLine: C01
+  processNote: "\uADF8 \uC544\uC774\uC5D0\uAC8C \uB3CC\uB824\uBCF4\uB0C8\uB2E4."
   spaceChange: "\uCD9C\uC785\uBB38 \uC606 \uC0AC\uC9C4\xB7\uAF43, \uBC1D\uC544\uC9C4 \uC870\uBA85"
   fourthNightReplacement: "\uC7A0\uB4DC\uB294 \uC7A5\uBA74 \u2192 \uC2DC\uACC4\uB97C \uBC97\uC5B4\uB454 \uC7A5\uBA74"
   fourthNightTrace: "\uCC22\uC5B4\uC9C4 \uCC9C\uC758 \uACB0"
