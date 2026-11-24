@@ -11,6 +11,10 @@ namespace Dokkaebi
     //  - 2단계: 그 단계 데이터의 힌트 대사(H01 등)를 물건 옆에. 대사가 없는 단계는 건너뛴다.
     //    단계가 바뀌면 대기열에 남은 이전 단계 힌트 대사는 지운다. 연출 대사가 먼저 나온다(대기열 순서) (21-4)
     //  - 3단계: 정답 위치에 작은 빛 점이 깜박인다. 처리 자리 빛 윤곽(물건 모양)과는 모양으로 구분 (12장)
+    //  - 반복 (11/25 실행 확인 '한 번만 나와서 계속 만지작거려도 모름'): 도달한 힌트는 진행할 때까지 되풀이한다.
+    //    움찔은 nudgeRepeat초마다, 힌트 대사는 lineRepeat초마다(다른 대사가 떠 있으면 미룸). 빛 점은 켜진 채로
+    //  - 만질 때 다시 보여 주기 (11/25): 이미 나온 힌트가 있으면 곰 인형을 잡거나 틀린 조작을 할 때 그 힌트를 한 번 더 (touchCooldown초 간격).
+    //    힌트 단계를 앞당기지는 않는다 (12장 '반복 실패 횟수에 따른 별도 힌트는 없다', 만지기로 타이머가 리셋되지도 않는다)
     // 시작값은 5주차 플레이테스트와 12월 힌트 타이밍 테스트(n=6, 기획서 7장)에서 조정한다.
     public class HintDirector : MonoBehaviour
     {
@@ -29,6 +33,14 @@ namespace Dokkaebi
         [Tooltip("발견 단계 (단계 데이터의 discovery)")]
         public float[] discoveryTimes = { 20f, 30f, 40f };
 
+        [Header("반복·만질 때 (11/25)")]
+        [Tooltip("힌트 1단계 이상이면 이 간격(초)마다 다시 움찔")]
+        public float nudgeRepeat = 8f;
+        [Tooltip("힌트 2단계 이상이면 이 간격(초)마다 힌트 대사를 다시")]
+        public float lineRepeat = 20f;
+        [Tooltip("곰 인형을 잡거나 틀린 조작을 할 때 이미 나온 힌트를 다시 보여 주는 최소 간격 (초)")]
+        public float touchCooldown = 5f;
+
         [Header("빛 점")]
         [Tooltip("깜박임 한 번의 길이 (초)")]
         public float blinkPeriod = 0.7f;
@@ -40,6 +52,8 @@ namespace Dokkaebi
 
         bool running;
         int timedStep;
+        float nextNudge, nextLine, lastTouchCue = -999f;
+        Grabbable watchedBear;
         Renderer dotRenderer;
         Vector3 dotScale = Vector3.one;
 
@@ -61,6 +75,19 @@ namespace Dokkaebi
             GameEvents.PartFitted += OnPartFitted;
             GameEvents.StepCompleted += OnStepCompleted;
             GameEvents.MemoryTriggered += OnMemory;
+            GameEvents.WrongOperation += OnWrong;
+            WatchBear();
+        }
+
+        void Start() { WatchBear(); }
+
+        void WatchBear()
+        {
+            var b = repair != null ? repair.bear : null;
+            if (b == watchedBear) return;
+            if (watchedBear != null) watchedBear.Grabbed -= OnBearGrabbed;
+            watchedBear = b;
+            if (watchedBear != null) watchedBear.Grabbed += OnBearGrabbed;
         }
 
         void OnDisable()
@@ -69,6 +96,25 @@ namespace Dokkaebi
             GameEvents.PartFitted -= OnPartFitted;
             GameEvents.StepCompleted -= OnStepCompleted;
             GameEvents.MemoryTriggered -= OnMemory;
+            GameEvents.WrongOperation -= OnWrong;
+            if (watchedBear != null) watchedBear.Grabbed -= OnBearGrabbed;
+            watchedBear = null;
+        }
+
+        // ---- 만질 때 이미 나온 힌트를 다시 (11/25) ----
+        void OnBearGrabbed(Grabbable g) { TouchCue("곰 인형 잡음"); }
+        void OnWrong(string item, int step) { if (item == ItemId) TouchCue("틀린 조작"); }
+
+        void TouchCue(string why)
+        {
+            if (!running || Level < 1 || repair == null) return;
+            if (Time.time - lastTouchCue < touchCooldown) return;
+            lastTouchCue = Time.time;
+            int step = repair.CurrentStep;
+            bool said = Level >= 2 && dialogue != null && !dialogue.IsBusy && SayHint(step);
+            if (said) nextLine = Elapsed + lineRepeat;            // 곧바로 또 나오지 않게
+            else { Nudge(step, TargetFor(step)); nextNudge = Elapsed + nudgeRepeat; }
+            Debug.Log($"[힌트] {ItemId}: {why} → 힌트 {Level}단계 다시 ({(said ? "대사" : "움찔")})");
         }
 
         // ---- 타이머 켜고 끄기 (21-5: S2 켬 / S3 멈춤 / 그 외 끔) ----
@@ -126,6 +172,18 @@ namespace Dokkaebi
             Elapsed += Time.deltaTime;
             var times = IsDiscovery(step) ? discoveryTimes : normalTimes;
             while (Level < 3 && Level < times.Length && Elapsed >= times[Level]) Raise(step, Level + 1);
+
+            // 도달한 힌트를 진행할 때까지 되풀이 (11/25)
+            if (Level >= 1 && Elapsed >= nextNudge)
+            {
+                Nudge(step, TargetFor(step));
+                nextNudge = Elapsed + nudgeRepeat;
+            }
+            if (Level >= 2 && Elapsed >= nextLine && dialogue != null && !dialogue.IsBusy)
+            {
+                SayHint(step);
+                nextLine = Elapsed + lineRepeat;
+            }
         }
 
         bool IsDiscovery(int step)
@@ -144,31 +202,32 @@ namespace Dokkaebi
             var target = TargetFor(step);
             switch (level)
             {
-                case 1: Nudge(step, target); break;
-                case 2: SayHint(step); break;
+                case 1: Nudge(step, target); nextNudge = Elapsed + nudgeRepeat; break;
+                case 2: SayHint(step); nextLine = Elapsed + lineRepeat; break;
                 case 3: ShowDot(target); break;
             }
         }
 
-        // HNT-02: 곰 1~3단계는 배 쪽 움찔(흔들 때 들썩임과 같은 움직임), 4·5단계는 정답 쪽으로 기움
+        // HNT-02: 곰 인형 전체가 정답 쪽(1~3단계 찢어진 배, 4단계 눈 자리, 5단계 다음 바늘구멍)으로 두 번 움찔.
+        // 손에 들고 있으면 그 손에 약한 진동 (11/25 변경, 이전: 몸통만 커졌다 작아짐 / 모델만 기울어짐)
         void Nudge(int step, Transform target)
         {
             var view = repair.view;
             if (view == null) return;
-            if (step <= 3 || target == null) view.PulseBelly();
-            else view.Lean(target.position);
+            view.HintTwitch(target != null ? target.position : view.transform.position + view.transform.forward);
         }
 
         // HNT-03: 대본의 고정 대사를 물건 옆에. 셋째 밤처럼 대사가 없는 단계는 건너뛴다
-        void SayHint(int step)
+        bool SayHint(int step)
         {
             var s = data != null ? data.Step(step) : null;
             if (s == null || string.IsNullOrEmpty(s.hintLine) || dialogue == null)
             {
                 Debug.Log($"[힌트] {ItemId}: {step}단계는 힌트 대사가 없어 2단계 대사를 건너뜀");
-                return;
+                return false;
             }
             dialogue.Say(s.hintLine, lineAnchor != null ? lineAnchor : repair.bear != null ? repair.bear.transform : null);
+            return true;
         }
 
         // HNT-04: 정답 위치 빛 점

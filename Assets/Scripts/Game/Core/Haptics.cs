@@ -44,6 +44,8 @@ namespace Dokkaebi
         public static readonly HapticPattern Fit = new HapticPattern("맞는 조작", FitAmp, FitDur);
         public static readonly HapticPattern Wrong = new HapticPattern("틀린 조작", WrongAmp, WrongDur, 2, 0.05f);
         public static readonly HapticPattern Damage = new HapticPattern("억지 손상", DamageAmp, DamageDur, 3, 0.04f);
+        // 힌트 1단계(HNT-02)를 손에 든 채 받을 때: 물건이 손 안에서 움찔하는 느낌. 틀린 조작(0.5)보다 약하게, 간격은 길게 (11/25 가안)
+        public static readonly HapticPattern HintTwitch = new HapticPattern("힌트 움찔", 0.3f, 0.06f, 2, 0.12f);
         public static readonly HapticPattern Rattle = new HapticPattern("달그락", RattleAmp, RattleDur);
         public static readonly HapticPattern StepDone = new HapticPattern("단계 완료", 0.45f, 0.1f);
         public static readonly HapticPattern Place = new HapticPattern("처리", 0.5f, 0.15f);
