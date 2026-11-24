@@ -200,10 +200,10 @@ namespace Dokkaebi
             yield return new WaitForSeconds(0.6f);
             if (dokkaebi != null) yield return WithTimeout(dokkaebi.Appear(), dokkaebi.appearTime, "도깨비 등장");
 
-            // D01 + 고유음 (NPC-04)
-            if (dokkaebi != null) dokkaebi.StartVoice();
+            // D01 + 고유음 (NPC-04). 고유음은 대사 표시(DialogueDisplay)가 도깨비 대사마다 낸다.
+            // 이 밤의 골동품 소리로 바꿔 넣으면 힌트(H01·H02)·기억 주인(M01)·D02에도 같은 소리가 난다
+            if (dialogue != null && bearData != null) dialogue.dokkaebiSound = bearData.dokkaebiVoice;
             if (dialogue != null) yield return dialogue.SayAndWait(bearData != null ? bearData.requestLine : "D01", dokkaebiTalkAnchor);
-            if (dokkaebi != null) dokkaebi.StopVoice();
 
             // 도깨비 → 곰 인형 (NPC-02). 곰 인형은 매트 위에 나타난다
             // 곰 인형 세트(인형 + 배 속 단추·쪽지)는 꺼 둔 채 자리를 잡고, 연기가 가장 짙을 때 한꺼번에 켠다
@@ -258,9 +258,7 @@ namespace Dokkaebi
 
             if (dokkaebi != null) yield return WithTimeout(dokkaebi.BecomeDokkaebi(b.gameObject), dokkaebi.transformTime, "도깨비 재등장");
             else b.gameObject.SetActive(false);
-            if (dokkaebi != null) dokkaebi.StartVoice();
             if (dialogue != null) yield return dialogue.SayAndWait(data != null ? data.processLine : "D02", dokkaebiTalkAnchor);
-            if (dokkaebi != null) dokkaebi.StopVoice();
             if (dokkaebi != null) yield return WithTimeout(dokkaebi.BecomeItem(b.gameObject), dokkaebi.transformTime, "도깨비 변신");
             b.gameObject.SetActive(true);
 

@@ -10,6 +10,9 @@ namespace Dokkaebi
     //  - 도깨비 글자는 그 도깨비나 물건 옆, 주인공 글자는 작업대 위 시선 높이 (대사 시작 때 정하고 그 대사 동안 고정, Q-101)
     //  - 새 대사는 대기열 (Q-095). 대사가 떠 있어도 조작할 수 있다 (21-4)
     //  - 서체·색은 UI 시안(11/13, 강민우) 방향으로 맞춤. 트리거로 빨리 넘기기(INP-09)·구절 나누기 정리(UI-02)는 4주차
+    //  - 도깨비 고유음 (NPC-04, 기획서 10장·17장): 도깨비(또는 도깨비가 변한 물건)의 글자가 떠 있는 동안 물건을 닮은 소리를
+    //    화자 자리에서 반복 재생한다. 도깨비 모습일 때(D01·D02)뿐 아니라 물건 모습일 때(힌트 H01·H02, 기억 주인 M01)에도 같은 소리가 난다.
+    //    소리는 GameFlow가 밤마다 골동품 데이터(AntiqueData.dokkaebiVoice)로 바꿔 넣는다 (5주차 강민우 9번)
     public class DialogueDisplay : MonoBehaviour
     {
         public DialogueTable table;
@@ -33,6 +36,13 @@ namespace Dokkaebi
         public float protagonistPitchDown = 40f;
         public float protagonistPitchUp = 15f;
 
+        [Header("도깨비 고유음 (NPC-04)")]
+        [Tooltip("도깨비 대사 동안 반복되는 물건 고유음. 비우면 소리 없이 글자만 나온다. GameFlow가 밤 시작 때 골동품 데이터의 소리로 채운다")]
+        public AudioClip dokkaebiSound;
+        [Range(0f, 1f)] public float dokkaebiSoundVolume = 0.5f;
+        [Tooltip("글자가 사라질 때 고유음을 줄이는 시간 (초). 뚝 끊기지 않게")]
+        public float dokkaebiSoundFade = 0.2f;
+
         [Header("대사 음성 (실험)")]
         [Range(0f, 1f)] public float voiceVolume = 1f;
         [Tooltip("음성이 끝난 뒤 글자를 더 보여주는 시간 (초)")]
@@ -43,6 +53,8 @@ namespace Dokkaebi
         readonly Queue<Request> queue = new Queue<Request>();
         TextMeshPro label;
         AudioSource voiceSource;
+        AudioSource speakerSource;
+        Coroutine speakerFade;
         Transform follow;
         Vector3 fixedPos;
         bool useFixed;
@@ -75,6 +87,15 @@ namespace Dokkaebi
             voiceSource.minDistance = 0.5f;
             voiceSource.maxDistance = 6f;
             voiceSource.rolloffMode = AudioRolloffMode.Linear;
+
+            var sgo = new GameObject("도깨비 고유음");
+            sgo.transform.SetParent(transform, false);
+            speakerSource = sgo.AddComponent<AudioSource>();
+            speakerSource.playOnAwake = false;
+            speakerSource.loop = true;
+            speakerSource.minDistance = 0.5f;
+            speakerSource.maxDistance = 6f;
+            speakerSource.rolloffMode = AudioRolloffMode.Linear;
         }
 
         // 대사를 대기열에 넣는다. 돌려받은 번호로 끝났는지 확인할 수 있다.
@@ -120,6 +141,7 @@ namespace Dokkaebi
                 label.gameObject.SetActive(true);
                 var clip = r.line.voice;
                 PlayVoice(clip, r.anchor, r.line.speaker);
+                StartSpeakerSound(r.anchor, r.line.speaker);
                 var times = PhraseTimes(phrases, clip);
                 for (int i = 0; i < phrases.Count; i++)
                 {
@@ -127,6 +149,7 @@ namespace Dokkaebi
                     yield return new WaitForSeconds(times[i]);
                 }
                 if (voiceSource != null) voiceSource.Stop();
+                StopSpeakerSound();
                 label.gameObject.SetActive(false);
                 finished = Mathf.Max(finished, r.ticket);
             }
@@ -170,6 +193,44 @@ namespace Dokkaebi
             voiceSource.Play();
         }
 
+        // 도깨비 대사일 때만 고유음을 켠다. 화자 자리가 없으면 머리 고정(2D)으로 낸다
+        void StartSpeakerSound(Transform anchor, Speaker speaker)
+        {
+            if (speakerSource == null) return;
+            if (speaker != Speaker.Dokkaebi || dokkaebiSound == null) { StopSpeakerSound(true); return; }
+            if (speakerFade != null) { StopCoroutine(speakerFade); speakerFade = null; }
+            bool spatial = anchor != null;
+            speakerSource.spatialBlend = spatial ? 1f : 0f;
+            if (spatial) speakerSource.transform.position = anchor.position;
+            speakerSource.volume = dokkaebiSoundVolume;
+            if (speakerSource.clip != dokkaebiSound || !speakerSource.isPlaying)
+            {
+                speakerSource.clip = dokkaebiSound;
+                speakerSource.Play();
+            }
+        }
+
+        void StopSpeakerSound(bool immediate = false)
+        {
+            if (speakerSource == null || !speakerSource.isPlaying) return;
+            if (speakerFade != null) { StopCoroutine(speakerFade); speakerFade = null; }
+            if (immediate || dokkaebiSoundFade <= 0f) { speakerSource.Stop(); return; }
+            speakerFade = StartCoroutine(FadeOutSpeaker());
+        }
+
+        IEnumerator FadeOutSpeaker()
+        {
+            float from = speakerSource.volume;
+            for (float t = 0f; t < dokkaebiSoundFade; t += Time.deltaTime)
+            {
+                speakerSource.volume = Mathf.Lerp(from, 0f, t / dokkaebiSoundFade);
+                yield return null;
+            }
+            speakerSource.Stop();
+            speakerSource.volume = dokkaebiSoundVolume;
+            speakerFade = null;
+        }
+
         void PreparePosition(Request r)
         {
             var cam = Camera.main;
@@ -196,6 +257,8 @@ namespace Dokkaebi
         {
             if (voiceSource != null && voiceSource.isPlaying && voiceSource.spatialBlend > 0f && follow != null)
                 voiceSource.transform.position = follow.position;
+            if (speakerSource != null && speakerSource.isPlaying && speakerSource.spatialBlend > 0f && follow != null)
+                speakerSource.transform.position = follow.position;
             if (label == null || !label.gameObject.activeSelf) return;
             Vector3 target = useFixed ? fixedPos : follow != null ? follow.position + Vector3.up * speakerOffset : label.transform.position;
             // 화자가 움직이면 부드럽게 따라간다 (Q-100)
