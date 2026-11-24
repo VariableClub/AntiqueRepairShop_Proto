@@ -411,10 +411,16 @@ namespace Dokkaebi.EditorTools
             Vector3[] footprint = { new Vector3(0.02f, 0.002f, 0.13f), new Vector3(0.03f, 0.002f, 0.14f), new Vector3(0.065f, 0.002f, 0.14f), new Vector3(0.055f, 0.002f, 0.13f) };
             float[] slotX = { -0.545f, -0.495f, -0.43f, -0.355f };
             var slots = new FitSocket[4];
+            var slotGlows = new Renderer[4];
+            // 홈 빛 힌트 (11/25): 처리 자리 빛 윤곽과 같은 재질. 홈보다 사방 4mm 크게, 홈 바로 위에 얹는다
+            var slotGlowMat = TransparentMat("빛 윤곽", new Color(1f, 0.92f, 0.6f, 0.35f));
             for (int i = 0; i < 4; i++)
             {
                 var pos = new Vector3(slotX[i], H + 0.03f, 0.42f);
                 Prim(PrimitiveType.Cube, $"홈 - {names[i]}", root, pos - new Vector3(0f, 0.0085f, 0f), footprint[i], groove, false);
+                var glowGo = Prim(PrimitiveType.Cube, $"홈 빛 - {names[i]} (힌트, 11/25)", root, pos - new Vector3(0f, 0.0065f, 0f), footprint[i] + new Vector3(0.008f, 0f, 0.008f), slotGlowMat, false);
+                slotGlows[i] = glowGo.GetComponent<Renderer>();
+                glowGo.SetActive(false);
                 var s = new GameObject($"도구 자리 - {names[i]} (EP0-02)").AddComponent<FitSocket>();
                 s.transform.SetParent(root, false);
                 s.transform.position = pos;
@@ -507,6 +513,7 @@ namespace Dokkaebi.EditorTools
 
             var pc = root.gameObject.AddComponent<PrologueController>();
             pc.toolSlots = slots;
+            pc.slotGlows = slotGlows;
             pc.lid = hinge;
             pc.lidOpenEuler = new Vector3(100f, 0f, 0f); // 앞쪽 가장자리가 위·뒤로 들린다
             pc.memo = gaze;
