@@ -19,6 +19,8 @@ namespace Dokkaebi
         public Vector3 fillFlatScale = new Vector3(0.12f, 0.12f, 0.015f);
         public Vector3 fillFullScale = new Vector3(0.13f, 0.13f, 0.07f);
         public Transform bellyPatch;      // 흔들 때 들썩이는 천 (Q-254 소리 없이도 보이는 단서)
+        [Tooltip("솜을 다 채웠을 때 몸(bellyPatch)이 커지는 비율. 13장 3단계 '배가 둥글게 부풂'을 영상에서도 보이게 (교수님 피드백 3)")]
+        public float stuffedGrow = 0.04f;
         [Tooltip("들썩일 때 커지는 비율. 회색 박스 배 천은 0.25, 모델 몸 전체를 들썩이면 작게")]
         public float pulseAmount = 0.25f;
         public GameObject[] threads;      // 실 4개
@@ -33,14 +35,21 @@ namespace Dokkaebi
         public Transform eyeMarkRoot;     // 손상 C 때 틀어짐
         public GameObject buttonCrack;    // 손상 B
 
+        [Header("힌트 1단계 기울기 (HNT-02)")]
+        [Tooltip("정답 쪽으로 기우는 각도 (도)")]
+        public float leanAngle = 7f;
+        [Tooltip("기울었다 돌아오는 시간 (초). 두 번 반복")]
+        public float leanTime = 0.45f;
+
         public string StateName { get; private set; } = "S0";
 
         float pulse;
         Vector3 patchBaseScale = Vector3.one;
+        Vector3 patchOriginal;
 
         void Awake()
         {
-            if (bellyPatch != null) patchBaseScale = bellyPatch.localScale;
+            if (bellyPatch != null) { patchBaseScale = bellyPatch.localScale; patchOriginal = patchBaseScale; }
             SetStuffing(0f);
             SetThreads(0);
             if (tearLarge != null) tearLarge.SetActive(false);
@@ -61,10 +70,50 @@ namespace Dokkaebi
 
         public void PulseBelly() { pulse = 1f; }
 
+        // HNT-02: 수선 전 모델이 정답 쪽(눈 자리·다음 바늘구멍)으로 살짝 두 번 기울었다 돌아온다 (12장 '움찔하거나 기운다').
+        // 판정 자리(소켓·구멍)는 몸체에 붙어 있으므로 보이는 모델만 기울인다
+        public void Lean(Vector3 worldTarget)
+        {
+            var m = modelBefore != null && modelBefore.activeInHierarchy ? modelBefore.transform : null;
+            if (m == null) { PulseBelly(); return; }
+            if (leaning != null) { StopCoroutine(leaning); m.localRotation = leanBase; }
+            leaning = StartCoroutine(LeanRoutine(m, worldTarget));
+        }
+
+        Coroutine leaning;
+        Quaternion leanBase;
+
+        System.Collections.IEnumerator LeanRoutine(Transform m, Vector3 worldTarget)
+        {
+            leanBase = m.localRotation;
+            Vector3 dir = Vector3.ProjectOnPlane(worldTarget - m.position, Vector3.up);
+            if (dir.sqrMagnitude < 1e-6f) dir = m.forward;
+            // 위쪽 축을 정답 방향으로 기울이는 회전 축 (월드 → 부모 기준)
+            Vector3 axisWorld = Vector3.Cross(Vector3.up, dir.normalized);
+            Vector3 axis = m.parent != null ? m.parent.InverseTransformDirection(axisWorld) : axisWorld;
+            for (int rep = 0; rep < 2; rep++)
+            {
+                for (float t = 0f; t < leanTime; t += Time.deltaTime)
+                {
+                    float k = Mathf.Sin(t / leanTime * Mathf.PI);
+                    m.localRotation = Quaternion.AngleAxis(leanAngle * k, axis) * leanBase;
+                    yield return null;
+                }
+            }
+            m.localRotation = leanBase;
+            leaning = null;
+        }
+
         public void SetStuffing(float t)
         {
-            if (bellyFill == null) return;
-            bellyFill.localScale = Vector3.Lerp(fillFlatScale, fillFullScale, Mathf.Clamp01(t));
+            t = Mathf.Clamp01(t);
+            if (bellyFill != null) bellyFill.localScale = Vector3.Lerp(fillFlatScale, fillFullScale, t);
+            // 몸 전체가 솜만큼 조금 부푼다 (흔들 때 들썩임도 이 크기를 기준으로)
+            if (bellyPatch != null && patchOriginal != Vector3.zero)
+            {
+                patchBaseScale = patchOriginal * (1f + stuffedGrow * t);
+                if (pulse <= 0f) bellyPatch.localScale = patchBaseScale;
+            }
         }
 
         public void SetThreads(int n)

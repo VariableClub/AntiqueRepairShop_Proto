@@ -221,7 +221,23 @@ namespace Dokkaebi.EditorTools
             flow.transition = trans;
             flow.doorBell = GameObject.Find("출입문 종")?.transform;
             flow.bearSpawn = bearSpawn;
-            systems.AddComponent<DebugKeys>().flow = flow;
+            flow.ledger = BuildLedger(shelf.transform);
+
+            // ---- 힌트 (HNT-01~04, 5주차) ----
+            // 정답 위치: 1~3단계 찢어진 배(솜 넣는 자리), 4단계 눈 단추 자리, 5단계는 다음 바늘구멍(HintDirector가 따라감)
+            var hints = new GameObject("힌트 (HNT-01~04)").AddComponent<HintDirector>();
+            hints.transform.SetParent(systems.transform, false);
+            hints.repair = repair;
+            hints.data = bearData;
+            hints.dialogue = dialogue;
+            hints.lineAnchor = repair.bear.transform;
+            var tear = repair.belly != null ? repair.belly.transform : repair.bear.transform;
+            hints.stepTargets = new[] { tear, tear, tear, repair.eye != null ? repair.eye.transform : tear, tear };
+            hints.lightDot = BuildHintDot(systems.transform);
+
+            var keys = systems.AddComponent<DebugKeys>();
+            keys.flow = flow;
+            keys.hints = hints;
 
             // 높이를 따라 움직이는 것들은 정적 배치(Static Batching)에서 빼야 움직인다
             SetNonStatic(heightRoot);
@@ -235,7 +251,7 @@ namespace Dokkaebi.EditorTools
                 EditorSceneManager.CloseScene(scene, true);
             }
             AssetDatabase.SaveAssets();
-            Debug.Log($"[씬 만들기] {ScenePath} 저장 완료 (Project 창에서 열기). 플레이 후 N=다음, B=억지 손상, W=잘못된 처리 자리, V=기억 영상 방식, R=수선 기록, L=지연 확인");
+            Debug.Log($"[씬 만들기] {ScenePath} 저장 완료 (Project 창에서 열기). 플레이 후 N=다음, B=억지 손상, H=힌트 한 단계, W=잘못된 처리 자리, V=기억 영상 방식, R=수선 기록, L=지연 확인");
         }
 
         // ================= 공간 =================
@@ -757,7 +773,7 @@ namespace Dokkaebi.EditorTools
             view.tearLarge = tearL;
             view.bellyFill = fill.transform;
             view.fillFlatScale = new Vector3(0.03f, 0.06f, 0.006f);
-            view.fillFullScale = new Vector3(0.036f, 0.07f, 0.02f);
+            view.fillFullScale = new Vector3(0.04f, 0.072f, 0.03f); // 솜이 찢어진 틈 밖으로 보일 만큼 부풀게 (교수님 피드백 3, 11/24)
             view.threads = threads;
             view.seamClosed = null;          // 완성 모습은 수선 후 모델
             view.modelBefore = before;
@@ -779,6 +795,12 @@ namespace Dokkaebi.EditorTools
             repair.eye = eye;
             repair.stitch = stitch;
             repair.view = view;
+            // 수선 부위 반응 빛 (교수님 피드백 3): 지름 5cm 반투명 구. 맞는 도구를 쥐고 다가갈 때와 단계 완료 순간에만 보인다
+            var spot = Prim(PrimitiveType.Sphere, "수선 부위 빛 (피드백 3)", bearT, bearT.TransformPoint(BearTearPos), Vector3.one * 0.05f, TransparentMat("수선 부위 빛", new Color(1f, 0.9f, 0.6f, 0.3f)), false);
+            var spotR = spot.GetComponent<Renderer>();
+            spotR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            spotR.enabled = false;
+            repair.spotGlow = spotR;
             return repair;
         }
 
@@ -991,6 +1013,32 @@ namespace Dokkaebi.EditorTools
         }
 
         // 에어팟 지연 확인용 빛 (SND-04)
+        // 힌트 3단계 빛 점 (HNT-04): 지름 1.4cm 작은 구. 처리 자리의 물건 모양 빛 윤곽과 모양으로 구분한다 (12장)
+        static GameObject BuildHintDot(Transform parent)
+        {
+            var go = Prim(PrimitiveType.Sphere, "힌트 빛 점 (HNT-04)", parent, Vector3.zero, Vector3.one * 0.014f, TransparentMat("힌트 빛 점", new Color(1f, 0.95f, 0.75f, 0.9f)), false);
+            go.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            go.SetActive(false);
+            return go;
+        }
+
+        // 수선 장부 기록 카드 (교수님 피드백 11/24): 반환 선반 옆, 선반을 보는 플레이어 쪽을 향한다. 처리 뒤 기록이 남고 다음 밤에도 있다
+        static TextMeshPro BuildLedger(Transform shelfZone)
+        {
+            var card = new GameObject("수선 장부 기록 (처리 뒤)").transform;
+            card.SetParent(shelfZone.parent, false);
+            float top = H - 0.15f;
+            card.position = new Vector3(-0.17f, top + 0.09f, -0.66f);
+            card.rotation = Quaternion.Euler(-15f, 180f, 0f); // 선반 앞(+z)에 선 플레이어가 읽게
+            var paper = Child(PrimitiveType.Quad, "장부 종이", card, new Vector3(0f, 0f, 0.002f), Quaternion.identity, new Vector3(0.15f, 0.12f, 1f), Mat("메모 종이", new Color(0.92f, 0.88f, 0.78f)));
+            NoCol(paper);
+            var text = Text("장부 글자", card, Vector3.zero, "", 0.011f, new Color(0.18f, 0.12f, 0.08f, 0f));
+            text.rectTransform.sizeDelta = new Vector2(0.14f, 0.11f);
+            text.textWrappingMode = TextWrappingModes.Normal;
+            card.gameObject.SetActive(false); // 처리 뒤 첫 기록 때 GameFlow가 켠다
+            return text;
+        }
+
         static Renderer BuildLatencyFlash()
         {
             var go = Prim(PrimitiveType.Sphere, "지연 확인 빛 (SND-04, 왼손 메뉴 버튼)", heightRoot, new Vector3(0f, H + 0.3f, 0.95f), Vector3.one * 0.04f, Mat("지연 확인 빛", new Color(1f, 1f, 1f)), false);
@@ -1460,7 +1508,7 @@ namespace Dokkaebi.EditorTools
         static DialogueTable EnsureDialogue()
         {
             var t = AssetDatabase.LoadAssetAtPath<DialogueTable>(DialoguePath);
-            if (t != null) return t;
+            if (t != null) { AddFeedbackLines(t); return t; }
             t = ScriptableObject.CreateInstance<DialogueTable>();
             // 곰 인형 파트 대본 v0 (신주연, 2026-11-05). D01·D02는 수정 초안, 11/13 v1로 교체
             t.lines.Add(new DialogueLine { id = "D01", speaker = Speaker.Dokkaebi, text = "버려진 지 오래야. 그런데 이상하게… 기다리는 마음만은 낡질 않더라.", next = "대사 끝 → 곰 인형으로 변신" });
@@ -1469,8 +1517,26 @@ namespace Dokkaebi.EditorTools
             t.lines.Add(new DialogueLine { id = "H02", speaker = Speaker.Dokkaebi, text = "한 땀씩… 차례대로.", next = "힌트 2단계 (4주차)" });
             t.lines.Add(new DialogueLine { id = "P01", speaker = Speaker.Protagonist, text = "누군가를 기다린다는 게 이런 느낌이었나?", next = "기억 종료 뒤" });
             t.lines.Add(new DialogueLine { id = "D02", speaker = Speaker.Dokkaebi, text = "……그 아이였구나. 할머니가 오실 때까지 나를 꼭 안고 있던 아이. 그 작은 품이 아직도 기억나. 나, 다시 그 아이에게 돌아가고 싶어.", next = "대사 끝 → 곰 인형으로 돌아감 → 반환 윤곽" });
+            AddFeedbackLines(t);
             AssetDatabase.CreateAsset(t, DialoguePath);
             return t;
+        }
+
+        // 교수님 피드백(11/24)으로 추가한 대사. ★가안: 신주연 대본 v1에서 문장 확정. 이미 있는 줄은 덮어쓰지 않는다
+        //  M01: 기억 영상 직전, 곰 인형이 1인칭으로 '내 기억'임을 알린다 (타인의 기억 → 바깥에서 바라봄)
+        //  C01: 반환 선반에 놓은 뒤 주인공의 마무리 대사 (반환의 의미: 그 아이에게 돌아감)
+        static void AddFeedbackLines(DialogueTable t)
+        {
+            bool added = false;
+            void Add(string id, Speaker sp, string text, string next)
+            {
+                if (t.Find(id) != null) return;
+                t.lines.Add(new DialogueLine { id = id, speaker = sp, text = text, next = next });
+                added = true;
+            }
+            Add("M01", Speaker.Dokkaebi, "…보여 줄게. 내가 기억하는 그 아이야.", "가안(11/24). 대사 끝 → 기억 영상");
+            Add("C01", Speaker.Protagonist, "이제 그 아이에게 돌아가렴.", "가안(11/24). 반환 선반에 놓은 뒤 → 수선 장부 → 밤 전환");
+            if (added) { EditorUtility.SetDirty(t); Debug.Log("[씬 만들기] 대사 표에 피드백 대사(M01·C01, 가안) 추가"); }
         }
 
         static void AddToBuildSettings(string path)

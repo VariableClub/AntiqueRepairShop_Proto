@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using TMPro;
 using UnityEngine;
 
 namespace Dokkaebi
@@ -14,6 +15,10 @@ namespace Dokkaebi
     //  S5 처리: 반환 선반 윤곽. 다른 처리 자리면 튕김 + 윤곽 깜박임(PRC-04)
     //  S6 공간 변화·밤 전환 (SYS-06·PRC-05)
     // 도깨비 등장·변신, 기억 영상, 밤 전환은 정해진 길이 + 5초 안에 끝나지 않으면 강제로 넘긴다 (21-4).
+    // 교수님 피드백 (11/24) 반영:
+    //  - 누구의 기억인지: 기억 영상 직전에 물건(곰 인형)이 1인칭으로 "내가 기억하는 그 아이"라고 알린다 (M01). 영상은 작업대 너머 화면으로
+    //    '바깥에서 바라보는' 구도를 유지한다. 주인공 자신의 기억(셋째 밤)과의 차이는 Docs/기억_시점_구분_설계.md
+    //  - 기억의 결말: 처리 자리에 놓인 뒤 바로 넘어가지 않고, 놓인 모습 확인 → 마무리 대사(C01) → 수선 장부 기록 → 밤 전환 순서로 끝낸다
     public class GameFlow : MonoBehaviour
     {
         [Header("작업대")]
@@ -42,6 +47,15 @@ namespace Dokkaebi
         public Transform doorBell;
         [Tooltip("곰 인형이 놓이는 수선 매트 위 자리")]
         public Transform bearSpawn;
+
+        [Header("마무리 (교수님 피드백 11/24)")]
+        [Tooltip("작업대 옆 수선 장부 글자. 처리 뒤 이 밤의 기록이 한 줄씩 남고 다음 밤에도 그대로 있다")]
+        public TextMeshPro ledger;
+        [Tooltip("처리 자리에 놓인 모습을 보여 주는 시간 (초)")]
+        public float closingPause = 1.2f;
+        [Tooltip("장부 기록이 나타나는 시간과, 다 쓴 뒤 머무는 시간 (초)")]
+        public float ledgerFade = 1f;
+        public float ledgerHold = 2.5f;
 
         [Header("시간 (초)")]
         [Tooltip("수선 완료 뒤 인형이 숨 쉬듯 움직이는 시간 (기억 ①)")]
@@ -223,6 +237,10 @@ namespace Dokkaebi
             // 기억 ② 2~5초: 감정 조명 (MEM-04)
             StartCoroutine(DelayedLighting(data));
 
+            // 누구의 기억인지 먼저 알린다 (교수님 피드백 11/24): 숨 쉬는 곰 인형 옆에 곰 인형의 1인칭 대사. 끝나면 영상
+            if (dialogue != null && data != null && !string.IsNullOrEmpty(data.memoryOwnerLine))
+                yield return dialogue.SayAndWait(data.memoryOwnerLine, b.transform);
+
             // 기억 영상 (MEM-05·06·07). 끝나기 3초 전부터 조명이 돌아온다 (기억 ⑥)
             float length = data != null ? data.memoryLength : 20f;
             if (memoryVideo != null)
@@ -252,6 +270,37 @@ namespace Dokkaebi
             Debug.Log($"[흐름] 처리: {AntiqueData.ProcessName(data != null ? data.process : ProcessKind.Return)} — 반환 선반(뒤쪽)에 곰 인형 윤곽");
         }
 
+        // 수선 장부 한 칸: 몇째 밤 · 물건 / 무엇을 고쳤는지(정상·손상 문장 틀, 24장) / 어떻게 처리했는지
+        string LedgerEntry(AntiqueData data)
+        {
+            if (data == null) return "";
+            bool damaged = RepairRecord.IsDamaged(data.itemId);
+            string journal = damaged && !string.IsNullOrEmpty(data.journalDamaged) ? data.journalDamaged : data.journalNormal;
+            string process = !string.IsNullOrEmpty(data.processNote) ? data.processNote : AntiqueData.ProcessName(data.process);
+            return $"{data.nightLabel} · {data.displayName}\n{journal}\n{process}";
+        }
+
+        // 장부 글자가 서서히 나타나고 잠시 머문다. 글자는 지우지 않아 다음 밤에도 남는다 (10장 '밤이 바뀌어도 초기화하지 않는다')
+        IEnumerator WriteLedger(string entry)
+        {
+            if (string.IsNullOrEmpty(entry)) yield break;
+            ledger.text = string.IsNullOrEmpty(ledger.text) ? entry : ledger.text + "\n\n" + entry;
+            if (ledger.transform.parent != null) ledger.transform.parent.gameObject.SetActive(true); // 장부 카드
+            ledger.gameObject.SetActive(true);
+            Color c = ledger.color;
+            for (float t = 0f; t < ledgerFade; t += Time.deltaTime)
+            {
+                c.a = t / ledgerFade;
+                ledger.color = c;
+                yield return null;
+            }
+            c.a = 1f;
+            ledger.color = c;
+            Sfx.Play(SfxKey.Pen, ledger.transform.position);
+            Debug.Log($"[수선 장부] {entry.Replace("\n", " / ")}");
+            yield return new WaitForSeconds(ledgerHold);
+        }
+
         IEnumerator DelayedLighting(AntiqueData data)
         {
             yield return new WaitForSeconds(lightingDelay);
@@ -279,6 +328,12 @@ namespace Dokkaebi
             SetState(NightState.S6_Transition);
             Debug.Log($"[흐름] 첫째 밤 끝. {RepairRecord.Summary(bear.itemId)}");
             var data = bearData;
+
+            // 마무리 (교수님 피드백 11/24): 정해진 자리에 놓인 모습 → 마무리 대사 → 수선 장부 기록을 확인한 뒤 밤 전환
+            yield return new WaitForSeconds(closingPause);
+            if (dialogue != null && data != null && !string.IsNullOrEmpty(data.closingLine))
+                yield return dialogue.SayAndWait(data.closingLine);
+            if (ledger != null) yield return WriteLedger(LedgerEntry(data));
             string next = "둘째 밤";
             if (transition != null)
             {

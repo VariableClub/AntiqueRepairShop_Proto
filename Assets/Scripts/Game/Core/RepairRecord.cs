@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Dokkaebi
 {
-    // 물건별 수선 기록 (REP-04 손상 기록, REP-02 오조작 횟수).
+    // 물건별 수선 기록 (REP-04 손상 기록, REP-02 오조작 횟수, HNT 힌트 도달 단계).
     // 기획서 11장: 한 물건에서 억지가 여러 번 일어나도 손상은 한 번으로 기록하고,
     // 손상된 단계는 단계마다 남긴다(21-4). 저장(23장)은 12월 SAV 작업에서 이 값을 쓴다.
     public static class RepairRecord
@@ -15,6 +15,7 @@ namespace Dokkaebi
             public readonly List<int> damagedSteps = new List<int>();
             public readonly List<string> reasons = new List<string>();
             public int wrongCount;
+            public readonly Dictionary<int, int> hintLevels = new Dictionary<int, int>(); // 단계 → 도달한 힌트 단계 (SAV-07 '힌트 도달 단계')
         }
 
         static readonly Dictionary<string, Entry> entries = new Dictionary<string, Entry>();
@@ -48,6 +49,18 @@ namespace Dokkaebi
             Debug.Log($"[오조작] {item}: {step}단계 틀린 조작 (누적 {e.wrongCount}회, 기억에는 영향 없음)");
         }
 
+        // 힌트 도달 단계 기록 (HNT-01). 단계마다 가장 높이 올라간 힌트 단계만 남긴다
+        public static void MarkHint(string item, int step, int level)
+        {
+            var e = Get(item);
+            if (!e.hintLevels.TryGetValue(step, out int prev) || level > prev) e.hintLevels[step] = level;
+        }
+
+        public static int HintLevel(string item, int step)
+        {
+            return entries.TryGetValue(item, out var e) && e.hintLevels.TryGetValue(step, out int l) ? l : 0;
+        }
+
         public static bool IsDamaged(string item) { return entries.TryGetValue(item, out var e) && e.damaged; }
         public static bool IsStepDamaged(string item, int step) { return entries.TryGetValue(item, out var e) && e.damagedSteps.Contains(step); }
         public static IReadOnlyList<int> DamagedSteps(string item)
@@ -63,6 +76,12 @@ namespace Dokkaebi
             sb.Append($"{item}: 손상 {(e.damaged ? "있음" : "없음")}");
             if (e.damaged) sb.Append($" (단계 [{string.Join(", ", e.damagedSteps)}] / {string.Join(" · ", e.reasons)})");
             sb.Append($", 오조작 {e.wrongCount}회");
+            if (e.hintLevels.Count > 0)
+            {
+                var hints = new List<string>();
+                foreach (var kv in e.hintLevels) hints.Add($"{kv.Key}단계 {kv.Value}");
+                sb.Append($", 힌트 [{string.Join(", ", hints)}]");
+            }
             return sb.ToString();
         }
 

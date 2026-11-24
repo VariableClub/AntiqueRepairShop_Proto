@@ -10,9 +10,11 @@ namespace Dokkaebi
     //  V : 기억 영상 재생 방식 바꾸기 (자동 → 알파만 → 검은 배경만 → 콘티만, MEM-06 확인)
     //  R : 수선 기록 출력
     //  L : 에어팟 지연 확인 (기기에서는 왼손 메뉴 버튼, SND-04)
+    //  H : 지금 수선 단계의 힌트를 한 단계 올리기 (HNT-01~04 확인, 기다리지 않고)
     public class DebugKeys : MonoBehaviour
     {
         public GameFlow flow;
+        public HintDirector hints;
 
 #if UNITY_EDITOR
         void Update()
@@ -23,6 +25,7 @@ namespace Dokkaebi
             if (kb.bKey.wasPressedThisFrame && flow.bear != null) flow.bear.DebugDamageCurrent();
             if (kb.wKey.wasPressedThisFrame) flow.DebugWrongPlace();
             if (kb.vKey.wasPressedThisFrame && flow.memoryVideo != null) flow.memoryVideo.CycleMode();
+            if (kb.hKey.wasPressedThisFrame && hints != null) hints.DebugRaise();
             if (kb.rKey.wasPressedThisFrame && flow.bear != null) Debug.Log($"[확인용] {RepairRecord.Summary(flow.bear.itemId)}");
         }
 #endif

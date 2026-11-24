@@ -12,6 +12,12 @@ namespace Dokkaebi
     //  5 맞추기(순서): 바늘구멍 4개 → 실 15cm 당기기
     // 판정은 현재 단계에서만 켠다. 예외: 살피기 단계에서는 다음 단계(꺼내기)도 함께 켜 두고,
     // 꺼내기가 먼저 끝나면 1·2단계를 차례로 완료한다 (11장, 21-4, 결정 1 재검토 11/6).
+    //
+    // 수선 부위 반응 (교수님 피드백 3, 11/24 '수선 행동과 결과의 연결'): 화면 글자 안내 없이(11장) 행동과 부위를 잇는다
+    //  - 그 단계에 맞는 도구·부품을 쥐고 수선 부위에 가까이 가면 부위가 희미하게 빛난다 (3단계 솜 → 찢어진 배, 4단계 단추 → 빈 눈 자리)
+    //    5단계는 NeedleStitch가 다음 바늘구멍을 이미 밝힌다
+    //  - 단계가 끝나는 순간 고친 부위가 한 번 크게 빛나, 영상에서도 '어디가 끝났는지' 보이게 한다
+    //  - 힌트 3단계 빛 점(작은 점, 정답 위치)과는 크기·조건으로 구분: 이 빛은 맞는 것을 쥐고 다가갈 때만 켜지는 반응이다
     public class BearRepair : MonoBehaviour
     {
         public string itemId = "bear";
@@ -26,6 +32,22 @@ namespace Dokkaebi
         public int shakesRequired = 2;
         [Tooltip("자동 완료된 단계 사이의 간격 (기억 소리 1·2겹을 차례로 더함, Q-281)")]
         public float autoCompleteGap = 0.5f;
+
+        [Header("수선 부위 반응 (교수님 피드백 3)")]
+        [Tooltip("수선 부위에 겹쳐 보이는 반투명 구 (빌더가 만든다). 비우면 반응 없음")]
+        public Renderer spotGlow;
+        [Tooltip("맞는 도구·부품이 이 거리(m) 안에 오면 빛나기 시작")]
+        public float spotRange = 0.15f;
+        [Range(0f, 1f)] public float spotMaxAlpha = 0.35f;
+        [Tooltip("단계 완료 때 고친 부위가 빛나는 시간 (초)")]
+        public float doneFlashTime = 0.8f;
+        public Color spotColor = new Color(1f, 0.9f, 0.6f, 1f);
+
+        MaterialPropertyBlock spotBlock;
+        Vector3 spotScale = Vector3.one;
+        float flashUntil = -1f;
+        Transform flashAt;
+        static readonly int SpotColorId = Shader.PropertyToID("_BaseColor");
 
         public int CurrentStep { get; private set; } // 0 = 시작 전, 1~5, 6 = 수선 완료
         public bool IsRepaired => CurrentStep > 5;
@@ -50,6 +72,80 @@ namespace Dokkaebi
             if (belly != null) belly.Inserted -= OnInserted;
             if (eye != null) eye.Fitted -= OnEyeFitted;
             if (stitch != null) { stitch.HolePassed -= OnHolePassed; stitch.OnCompleted -= OnStitchDone; }
+        }
+
+        void Awake()
+        {
+            if (spotGlow != null)
+            {
+                spotBlock = new MaterialPropertyBlock();
+                spotScale = spotGlow.transform.localScale;
+                spotGlow.enabled = false;
+            }
+        }
+
+        // 단계별 수선 부위: 1~3·5단계 찢어진 배, 4단계 빈 눈 자리
+        Transform SpotFor(int step)
+        {
+            if (step == 4 && eye != null) return eye.transform;
+            return belly != null ? belly.transform : (bear != null ? bear.transform : null);
+        }
+
+        // 그 단계에 맞는 도구·부품 (3단계 솜, 4단계 단추). 없으면 반응 없음
+        string ToolKeyFor(int step)
+        {
+            if (step == 3 && belly != null) return belly.acceptKey;
+            if (step == 4 && eye != null) return eye.acceptKey;
+            return null;
+        }
+
+        void Update()
+        {
+            if (spotGlow == null) return;
+            Transform at = null;
+            float alpha = 0f, grow = 1f;
+
+            if (Time.time < flashUntil && flashAt != null)
+            {
+                // 단계 완료: 고친 부위가 한 번 크게 빛났다 사라진다
+                float t = 1f - (flashUntil - Time.time) / doneFlashTime;
+                at = flashAt;
+                alpha = Mathf.Sin(t * Mathf.PI) * Mathf.Min(1f, spotMaxAlpha * 2.2f);
+                grow = 1f + 0.8f * t;
+            }
+            else if (CurrentStep >= 1 && CurrentStep <= 5)
+            {
+                // 맞는 도구·부품을 쥐고 다가가면 그 부위가 희미하게 빛난다
+                string key = ToolKeyFor(CurrentStep);
+                var spot = SpotFor(CurrentStep);
+                if (key != null && spot != null)
+                {
+                    float d = float.MaxValue;
+                    foreach (var g in Grabbable.All)
+                        if (g != null && g.IsHeld && g.key == key) d = Mathf.Min(d, Vector3.Distance(g.transform.position, spot.position));
+                    if (d < spotRange)
+                    {
+                        at = spot;
+                        alpha = spotMaxAlpha * Mathf.InverseLerp(spotRange, spotRange * 0.25f, d);
+                    }
+                }
+            }
+
+            bool on = at != null && alpha > 0.01f;
+            spotGlow.enabled = on;
+            if (!on) return;
+            spotGlow.transform.position = at.position;
+            spotGlow.transform.localScale = spotScale * grow;
+            var c = spotColor;
+            c.a = alpha;
+            spotBlock.SetColor(SpotColorId, c);
+            spotGlow.SetPropertyBlock(spotBlock);
+        }
+
+        void FlashDone(int step)
+        {
+            flashAt = SpotFor(step);
+            flashUntil = Time.time + doneFlashTime;
         }
 
         public void Begin()
@@ -133,6 +229,7 @@ namespace Dokkaebi
             if (step != CurrentStep) return;
             Debug.Log($"[단계 완료] {itemId}: {step}단계{(RepairRecord.IsStepDamaged(itemId, step) ? " (손상된 단계 → 기억 소리는 갈라진 소리로)" : "")}");
             if (view != null) view.OnStepCompleted(step);
+            FlashDone(step);
             GameEvents.RaiseStepCompleted(itemId, step);
             StepCompleted?.Invoke(step);
             CurrentStep = step + 1;

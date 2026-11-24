@@ -95,12 +95,18 @@ namespace Dokkaebi
         public Texture2D[] storyboard = new Texture2D[0];
         [Tooltip("감정 조명 색 (스탠드). 세부 색값은 Unity 테스트에서 정한다")]
         public Color emotionColor = new Color(1f, 0.68f, 0.28f);
+        [Tooltip("기억 영상 직전, 누구의 기억인지 알리는 대사 키 (교수님 피드백 11/24 '타인의 기억과 나의 기억 구분'). 물건(도깨비)이 1인칭으로 말한다")]
+        public string memoryOwnerLine = "M01";
         [Tooltip("기억 뒤 주인공 반응 대사 키")]
         public string reactionLine = "P01";
 
         [Header("처리")]
         public string processLine = "D02";
         public ProcessKind process = ProcessKind.Return;
+        [Tooltip("처리 자리에 놓은 뒤, 밤 전환 전에 나오는 마무리 대사 키 (교수님 피드백 11/24 '기억의 결말과 보관의 의미')")]
+        public string closingLine = "C01";
+        [Tooltip("처리 결과 한 줄 (수선 장부에 남는다). 예: 그 아이에게 돌려보냈다")]
+        public string processNote = "그 아이에게 돌려보냈다.";
         [Tooltip("공간 변화 (다음 밤부터 남는 것)")]
         public string spaceChange = "출입문 옆 사진·꽃, 밝아진 조명";
 
