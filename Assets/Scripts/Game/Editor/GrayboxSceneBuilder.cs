@@ -440,6 +440,7 @@ namespace Dokkaebi.EditorTools
             float[] toolYaw = { 30f, -60f, 80f, 10f };
             var steel = Mat("도구 쇠", new Color(0.72f, 0.74f, 0.78f));
             var handle = Mat("도구 손잡이", new Color(0.55f, 0.18f, 0.12f));
+            var toolGlows = new Renderer[4];
             for (int i = 0; i < 4; i++)
             {
                 var t = NewGrabbable($"도구 - {names[i]}", root, toolPos[i], Quaternion.Euler(0f, toolYaw[i], 0f), keys[i], GrabCategory.Tool, 0.05f);
@@ -481,6 +482,11 @@ namespace Dokkaebi.EditorTools
                         AddBox(t, new Vector3(0.055f, 0.02f, 0.13f));
                         break;
                 }
+                // 도구 빛 힌트 (11/25): 아직 홈에 넣지 않은 도구도 빛나게 해 '무엇을' 넣는지 알려 준다. 도구 크기보다 사방 4mm 큰 반투명 상자, 도구를 따라다닌다
+                var tb = BoundsIn(t, t.gameObject);
+                var tg = NoCol(Child(PrimitiveType.Cube, $"도구 빛 - {names[i]} (힌트, 11/25)", t, tb.center, Quaternion.identity, tb.size + Vector3.one * 0.008f, slotGlowMat));
+                toolGlows[i] = tg.GetComponent<Renderer>();
+                tg.SetActive(false);
             }
 
             // 바늘꽂이·솜 상자·부품 칸(필름)은 곰 인형 쪽에서 만든다
@@ -514,6 +520,7 @@ namespace Dokkaebi.EditorTools
             var pc = root.gameObject.AddComponent<PrologueController>();
             pc.toolSlots = slots;
             pc.slotGlows = slotGlows;
+            pc.toolGlows = toolGlows;
             pc.lid = hinge;
             pc.lidOpenEuler = new Vector3(100f, 0f, 0f); // 앞쪽 가장자리가 위·뒤로 들린다
             pc.memo = gaze;

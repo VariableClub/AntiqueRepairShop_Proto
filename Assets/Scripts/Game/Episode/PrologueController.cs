@@ -11,6 +11,8 @@ namespace Dokkaebi
     //  홈 빛 힌트 (11/25, 실행 확인 '도구 정리에 힌트가 없어 막힘'): 도구를 하나도 더 넣지 못한 채 slotHintDelay초가 지나면
     //    아직 빈 홈에 홈 모양 빛이 희미하게 켜진다. 그 홈에 맞는 도구를 들고 가까이 가면 진해진다 (처리 자리 빛 윤곽 UI-05와 같은 방식 →
     //    '모양 빛 = 놓는 자리'를 여기서 먼저 익힌다). 도구를 하나 넣으면 다시 센다. 만지기만 해서는 다시 세지 않는다 (곰 인형 힌트와 같은 규칙)
+    //  도구 빛 (11/25 추가, '무엇을 넣어야 하는지 모를 수 있다'): 같은 때 아직 넣지 않은 도구도 은은하게 숨 쉬듯 빛난다.
+    //    도구를 손에 들면 그 도구의 빛은 꺼지고, 대신 맞는 홈의 빛이 가까울수록 진해진다
     public class PrologueController : MonoBehaviour
     {
         public FitSocket[] toolSlots;
@@ -25,6 +27,10 @@ namespace Dokkaebi
         [Header("홈 빛 힌트 (11/25)")]
         [Tooltip("toolSlots와 같은 순서. 홈 모양의 반투명 판")]
         public Renderer[] slotGlows = new Renderer[0];
+        [Tooltip("toolSlots와 같은 순서. 각 도구를 감싸는 반투명 상자 (도구의 자식)")]
+        public Renderer[] toolGlows = new Renderer[0];
+        [Tooltip("도구 빛이 숨 쉬듯 밝아졌다 어두워지는 주기 (초)")]
+        public float toolGlowPeriod = 1.6f;
         [Tooltip("진행 없이 이 시간(초)이 지나면 빈 홈이 빛난다 (곰 인형 힌트 1단계 시작값과 같게)")]
         public float slotHintDelay = 10f;
         [Range(0f, 1f)] public float glowFarAlpha = 0.18f;
@@ -109,6 +115,24 @@ namespace Dokkaebi
                 Debug.Log($"[프롤로그] {idle:0.#}초 무진행 → 빈 홈 빛 힌트");
             }
             if (!hintShown) return;
+            // 아직 넣지 않은 도구: 들고 있지 않을 때만 숨 쉬듯 빛난다
+            float breathe = 0.5f + 0.5f * Mathf.Sin(Time.time * Mathf.PI * 2f / Mathf.Max(0.1f, toolGlowPeriod));
+            for (int i = 0; toolGlows != null && i < toolGlows.Length && i < toolSlots.Length; i++)
+            {
+                var r = toolGlows[i];
+                var s = toolSlots[i];
+                if (r == null || s == null) continue;
+                var tool = r.GetComponentInParent<Grabbable>();
+                bool on = !s.IsFilled && (tool == null || !tool.IsHeld);
+                if (r.gameObject.activeSelf != on) r.gameObject.SetActive(on);
+                if (!on) continue;
+                var col = r.sharedMaterial != null && r.sharedMaterial.HasProperty(BaseColorId) ? r.sharedMaterial.GetColor(BaseColorId) : Color.white;
+                col.a = Mathf.Lerp(glowFarAlpha, glowNearAlpha, breathe * 0.6f);
+                r.GetPropertyBlock(block);
+                block.SetColor(BaseColorId, col);
+                r.SetPropertyBlock(block);
+            }
+
             for (int i = 0; i < slotGlows.Length && i < toolSlots.Length; i++)
             {
                 var r = slotGlows[i];
@@ -132,8 +156,8 @@ namespace Dokkaebi
 
         void SetGlows(bool on)
         {
-            if (slotGlows == null) return;
-            foreach (var r in slotGlows) if (r != null) r.gameObject.SetActive(on);
+            if (slotGlows != null) foreach (var r in slotGlows) if (r != null) r.gameObject.SetActive(on);
+            if (toolGlows != null) foreach (var r in toolGlows) if (r != null) r.gameObject.SetActive(on);
         }
 
         void OnMemoConfirmed()
