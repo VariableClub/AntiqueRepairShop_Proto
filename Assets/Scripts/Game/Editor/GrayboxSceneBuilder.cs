@@ -693,6 +693,8 @@ namespace Dokkaebi.EditorTools
             float k = Mathf.Clamp(Mathf.Max(nb.size.x, nb.size.z) / 0.07f, 0.8f, 1.6f);
             float halfW = 0.045f * k, pageH = 0.07f * k;
             var noteTex = AssetDatabase.LoadAssetAtPath<Texture2D>($"{HandDir}/Note_N01.png");
+            // 텍스처가 없으면 글씨 없는 종이로 만들어진다. 11/17 씬이 이렇게 만들어져 쪽지 글씨가 안 보였음 (11/24 확인) → 콘솔에 분명히 알린다
+            if (noteTex == null) Debug.LogWarning($"[씬 만들기] {HandDir}/Note_N01.png를 못 찾음 → 쪽지가 글씨 없는 종이로 만들어짐. Git LFS로 텍스처를 받은 뒤 다시 실행");
             var unfolded = new GameObject("쪽지 (펼침, N01 손글씨)");
             unfolded.transform.SetParent(note, false);
             unfolded.transform.localPosition = nb.center;
@@ -1181,7 +1183,9 @@ namespace Dokkaebi.EditorTools
             d.nightLabel = "첫째 밤";
             d.dokkaebiFeature = "단추 눈";
             d.requestLine = "D01";
-            d.dokkaebiVoice = Load<AudioClip>($"{AudioDir}/Dokkaebi_Bear_Voice_Placeholder.wav");
+            // 도깨비 고유음(NPC-04)은 비워 둔다. 자리표시 파일(Dokkaebi_Bear_Voice_Placeholder.wav)이 잡음이라 대사마다 지지직거림 (11/24 실행 확인).
+            // 고유음 파일이 정해지면 Antique_01_Bear.asset의 Dokkaebi Voice 칸에 직접 넣는다
+            d.dokkaebiVoice = null;
             d.steps = new[]
             {
                 new RepairStepData { name = "살피기", action = RepairAction.Inspect, doneCondition = "흔들기 2회 (15m/s²)", discovery = true, hintLine = "H01", force = ForceKind.None },
@@ -1260,7 +1264,7 @@ namespace Dokkaebi.EditorTools
             }
             for (int i = 0; i < 5; i++) d.memoryLayers[i] = Fill(d.memoryLayers[i], $"Memory_Bear_Layer{i + 1}_Placeholder.wav");
             d.memoryAudio = Fill(d.memoryAudio, "Memory_Bear_Full_Placeholder.wav");
-            d.dokkaebiVoice = Fill(d.dokkaebiVoice, "Dokkaebi_Bear_Voice_Placeholder.wav");
+            // dokkaebiVoice는 채우지 않는다 (위 EnsureAntiqueData 주석, 11/24)
             if (changed)
             {
                 EditorUtility.SetDirty(d);

@@ -21,7 +21,7 @@ MonoBehaviour:
   damagedModels: []
   dokkaebiFeature: "\uB2E8\uCD94 \uB208"
   requestLine: D01
-  dokkaebiVoice: {fileID: 8300000, guid: 4ba240b5aaf3fc64c8a851cafc8c8ab3, type: 3}
+  dokkaebiVoice: {fileID: 0}
   steps:
   - name: "\uC0B4\uD53C\uAE30"
     action: 0
