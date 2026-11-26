@@ -38,7 +38,13 @@ namespace Dokkaebi.EditorTools
         const string HandDir = "Assets/Art/Textures/Handwriting";
         const string ShaderFade = "Dokkaebi/ScreenFade";
         const string ShaderScreen = "Dokkaebi/MemoryScreen";
-        const string DokkaebiFbx = "Assets/Art/Dokkaebi/SM_Dokkaebi_Base.fbx";
+        // 도깨비: 11/26 신주연 리깅 모델(곰 인형 도깨비, 뼈 67개, 키 1.7m)로 교체. 이전 베이스 모델은 SM_Dokkaebi_Base.fbx
+        const string DokkaebiFbx = "Assets/Art/Dokkaebi/SK_Dokkaebi_Bear.fbx";
+        const string DokkaebiTex = "Assets/Art/Textures/SK_Dokkaebi_Base.fbm/T_Dokkaebi.jpg";
+        // 작업대: 11/26 신주연 모델 (가로 1.95 × 높이 0.85 × 깊이 0.75m, 서랍 3개). 텍스처는 FBX가 신주연 PC 경로를 가리켜 직접 연결한다
+        const string WorkbenchFbx = "Assets/Art/Models/SM_Wooden.fbx";
+        const string WorkbenchTex = "Assets/Art/Textures/T_Wooden.jpg";
+        const float WorkbenchFrontZ = 0.30f; // 플레이어(원점)에서 작업대 앞 모서리까지. 레벨 명세(상판 1.2×0.6, 가운데 z 0.6)의 앞 모서리와 같게 둔다
         // 신주연 아트 (11/17, week4/dev). 텍스처는 아직 없어 색 재질을 입힌다 (모델 재질에 텍스처가 붙어 있으면 그대로 쓴다)
         const string BearTornFbx = "Assets/Art/Models/SM_Bear_Torn.fbx";               // 수선 전: 몸 + 배 속 단추 + 접힌 쪽지
         const string BearRepairedFbx = "Assets/Art/Models/SM_Bear_Repaired.fbx";       // 수선 후
@@ -139,7 +145,7 @@ namespace Dokkaebi.EditorTools
             // 대사 글자는 도깨비 머리 위에 띄운다 (머리 속에 묻혀 글자가 잘리지 않게). 도깨비 키는 작업대 높이와 무관하게 1.6m
             var talk = new GameObject("도깨비 대사 자리 (머리 위)").transform;
             talk.SetParent(env, false);
-            talk.position = new Vector3(0f, DokkaebiHeight - 0.06f, 1.0f);
+            talk.position = new Vector3(0f, DokkaebiHeight - 0.06f, DokkaebiZ - 0.12f);
 
             // ---- 시스템 ----
             var systems = new GameObject("게임 흐름");
@@ -274,13 +280,17 @@ namespace Dokkaebi.EditorTools
             var wood = Mat("작업대", new Color(0.45f, 0.32f, 0.2f));
             var root = new GameObject("작업대 (H 0.90m)").transform;
             root.SetParent(heightRoot, false);
-            Prim(PrimitiveType.Cube, "상판", root, new Vector3(0f, H - 0.02f, 0.6f), new Vector3(1.2f, 0.04f, 0.6f), wood, true);
-            foreach (var x in new[] { -0.56f, 0.56f })
-                foreach (var z in new[] { 0.34f, 0.86f })
-                {
-                    var leg = Prim(PrimitiveType.Cube, "다리", env, new Vector3(x, (H - 0.04f) / 2f, z), new Vector3(0.05f, H - 0.04f, 0.05f), wood, true);
-                    leg.AddComponent<FloorToHeight>().topOffset = -0.04f;
-                }
+            // 신주연 작업대 모델이 있으면 그 모델로, 없으면 회색 박스 상판·다리로 만든다 (11/26)
+            if (!BuildWorkbenchModel(env, root))
+            {
+                Prim(PrimitiveType.Cube, "상판", root, new Vector3(0f, H - 0.02f, 0.6f), new Vector3(1.2f, 0.04f, 0.6f), wood, true);
+                foreach (var x in new[] { -0.56f, 0.56f })
+                    foreach (var z in new[] { 0.34f, 0.86f })
+                    {
+                        var leg = Prim(PrimitiveType.Cube, "다리", env, new Vector3(x, (H - 0.04f) / 2f, z), new Vector3(0.05f, H - 0.04f, 0.05f), wood, true);
+                        leg.AddComponent<FloorToHeight>().topOffset = -0.04f;
+                    }
+            }
             Prim(PrimitiveType.Cube, "수선 매트", root, new Vector3(0f, H + 0.002f, 0.6f), new Vector3(0.5f, 0.004f, 0.4f), Mat("매트", new Color(0.2f, 0.35f, 0.3f)), false);
             Prim(PrimitiveType.Cube, "사진 자리 (셋째 밤)", root, new Vector3(0.5f, H + 0.002f, 0.8f), new Vector3(0.15f, 0.004f, 0.2f), Mat("표시", new Color(0.3f, 0.3f, 0.3f)), false);
             var cal = Prim(PrimitiveType.Cube, "탁상 달력", root, new Vector3(-0.42f, H + 0.075f, 0.86f), new Vector3(0.2f, 0.15f, 0.04f), Mat("종이", new Color(0.88f, 0.85f, 0.76f)), false);
@@ -319,13 +329,111 @@ namespace Dokkaebi.EditorTools
             return root;
         }
 
+        // 작업대 모델 (11/26, 신주연 SM_Wooden). 서랍이 플레이어 쪽을 보게 180° 돌리고, 앞 모서리를 z 0.30에 둔다.
+        //  - 높이: 모델은 0.85m로 고정이라 SYS-01(머리 높이로 H를 정함)을 따르려면 세로로 늘이고 줄여야 한다.
+        //    「작업대 모델 (높이 맞춤)」(가운데 기준 높이 1)이 FloorToHeight로 바닥~H를 채우고, 모델은 그 안에 꽉 차게 넣는다 (H 0.90이면 세로 1.06배)
+        //  - 가로·깊이는 모델 그대로 (1.95×0.75m). 레벨 명세(1.2×0.6m)보다 커서 옆의 할머니 서랍·기억 선반을 옮겼다 (BuildBlockouts)
+        //  - 상판 위 물건이 놓이는 충돌은 보이지 않는 상판 상자 하나로 (모델 메시 충돌은 서랍 손잡이 등이 걸려서 쓰지 않음)
+        static Vector2 workbenchSize = new Vector2(1.2f, 0.6f); // 가로·깊이. 모델이 있으면 모델 크기
+        static float WorkbenchCenterZ => WorkbenchFrontZ + workbenchSize.y * 0.5f;
+        static float DokkaebiZ => Mathf.Max(1.12f, WorkbenchFrontZ + workbenchSize.y + 0.19f);
+        static float MemoryShelfZ => workbenchSize.x > 1.3f ? 0.10f : 0.4f;
+
+        static bool BuildWorkbenchModel(Transform env, Transform tableRoot)
+        {
+            var model = InstantiateModel(WorkbenchFbx);
+            if (model == null)
+            {
+                Debug.LogWarning($"[씬 만들기] 작업대 모델을 찾지 못해 회색 박스로 만듦: {WorkbenchFbx} (Git LFS를 받았는지 확인)");
+                workbenchSize = new Vector2(1.2f, 0.6f);
+                return false;
+            }
+            model.name = "작업대 모델 (SM_Wooden, 신주연)";
+            foreach (var c in model.GetComponentsInChildren<Collider>(true)) Object.DestroyImmediate(c);
+            var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(WorkbenchTex);
+            var mat = ModelMat("M_Wooden (작업대, 신주연 텍스처)", tex, new Color(0.45f, 0.32f, 0.2f), 0.25f);
+            foreach (var r in model.GetComponentsInChildren<Renderer>(true))
+            {
+                var shared = r.sharedMaterials;
+                for (int i = 0; i < shared.Length; i++) shared[i] = mat;
+                r.sharedMaterials = shared;
+            }
+
+            var fit = new GameObject("작업대 모델 (높이 맞춤, SYS-01)").transform;
+            fit.SetParent(env, false);
+            model.transform.SetParent(fit, false);
+            model.transform.localPosition = Vector3.zero;
+            model.transform.localRotation = Quaternion.Euler(0f, 180f, 0f); // 서랍이 플레이어(원점) 쪽
+            var b = WorldBounds(model);
+            if (b.size.y < 0.01f) { Object.DestroyImmediate(fit.gameObject); workbenchSize = new Vector2(1.2f, 0.6f); return false; }
+            workbenchSize = new Vector2(b.size.x, b.size.z);
+            // fit 안에서 모델이 높이 1(-0.5~0.5)을 꽉 채우게
+            var ls = model.transform.localScale;
+            model.transform.localScale = new Vector3(ls.x, ls.y / b.size.y, ls.z);
+            b = WorldBounds(model);
+            model.transform.localPosition += new Vector3(-b.center.x, -0.5f - b.min.y, -b.center.z);
+            fit.position = new Vector3(0f, H * 0.5f, WorkbenchCenterZ);
+            fit.localScale = new Vector3(1f, H, 1f);
+            fit.gameObject.AddComponent<FloorToHeight>().topOffset = 0f;
+
+            // 물건이 놓이는 상판 (보이지 않는 충돌 상자)
+            var top = Prim(PrimitiveType.Cube, "상판 (충돌만, 모습은 작업대 모델)", tableRoot, new Vector3(0f, H - 0.02f, WorkbenchCenterZ), new Vector3(workbenchSize.x, 0.04f, workbenchSize.y), Mat("작업대", new Color(0.45f, 0.32f, 0.2f)), true);
+            top.GetComponent<Renderer>().enabled = false;
+            Debug.Log($"[씬 만들기] 작업대 모델 사용: {workbenchSize.x:0.00}×{workbenchSize.y:0.00}m, 앞 모서리 z {WorkbenchFrontZ:0.00}, 높이 H {H:0.00}에 맞춤");
+            return true;
+        }
+
+        static Bounds WorldBounds(GameObject go)
+        {
+            var rends = go.GetComponentsInChildren<Renderer>(true);
+            if (rends.Length == 0) return new Bounds(go.transform.position, Vector3.zero);
+            var b = rends[0].bounds;
+            foreach (var r in rends) b.Encapsulate(r.bounds);
+            return b;
+        }
+
+        // 신주연 모델용 재질: 텍스처가 있으면 텍스처, 없으면 색 (URP Lit). 모델 FBX의 임베디드 재질은 텍스처 경로가 신주연 PC라 쓰지 않는다 (11/26)
+        static Material ModelMat(string name, Texture2D tex, Color fallback, float smoothness)
+        {
+            if (mats.TryGetValue(name, out var cached)) return cached;
+            string path = $"{MatDir}/{name}.mat";
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null)
+            {
+                var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+                m = new Material(shader);
+                AssetDatabase.CreateAsset(m, path);
+            }
+            if (tex != null)
+            {
+                m.SetTexture("_BaseMap", tex);
+                m.mainTexture = tex;
+                m.SetColor("_BaseColor", Color.white);
+                m.color = Color.white;
+            }
+            else
+            {
+                Debug.LogWarning($"[씬 만들기] {name}: 텍스처를 못 찾아 색으로 대신함");
+                m.SetColor("_BaseColor", fallback);
+                m.color = fallback;
+            }
+            if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", smoothness);
+            if (m.HasProperty("_Metallic")) m.SetFloat("_Metallic", 0f);
+            EditorUtility.SetDirty(m);
+            mats[name] = m;
+            return m;
+        }
+
         static void BuildBlockouts(Transform env)
         {
             var gray = Mat("블록아웃", new Color(0.5f, 0.5f, 0.52f));
-            Prim(PrimitiveType.Cube, "할머니 서랍 (블록아웃)", env, new Vector3(-0.8f, H / 2f, 0.45f), new Vector3(0.4f, H, 0.4f), gray, true).AddComponent<FloorToHeight>().topOffset = 0f;
+            // 11/26 작업대 모델(가로 1.95m)과 겹치지 않게 작업대 왼쪽 끝 바깥으로 (이전 x -0.8). 왼쪽 벽 안쪽 면 x -1.375까지
+            float drawerX = -Mathf.Max(0.8f, workbenchSize.x * 0.5f + 0.2f);
+            Prim(PrimitiveType.Cube, "할머니 서랍 (블록아웃)", env, new Vector3(drawerX, H / 2f, 0.45f), new Vector3(0.4f, H, 0.4f), gray, true).AddComponent<FloorToHeight>().topOffset = 0f;
             var mem = new GameObject("기억 선반 (블록아웃, 격자 책장은 레벨 명세 v0.3)").transform;
             mem.SetParent(env, false);
-            Prim(PrimitiveType.Cube, "틀", mem, new Vector3(0.9f, (H + 0.45f) / 2f, 0.4f), new Vector3(0.5f, H + 0.45f, 0.25f), gray, true).AddComponent<FloorToHeight>().topOffset = 0.45f;
+            // 11/26 작업대 모델과 겹치지 않게 작업대 앞 모서리보다 플레이어 쪽(z 0.10)으로 (이전 z 0.4). 오른쪽 봉인함(z -0.35~-0.05)과는 2.5cm 띄움
+            Prim(PrimitiveType.Cube, "틀", mem, new Vector3(0.9f, (H + 0.45f) / 2f, MemoryShelfZ), new Vector3(0.5f, H + 0.45f, 0.25f), gray, true).AddComponent<FloorToHeight>().topOffset = 0.45f;
             Prim(PrimitiveType.Cube, "봉인함 (블록아웃)", env, new Vector3(0.85f, (H - 0.1f) / 2f, -0.2f), new Vector3(0.4f, H - 0.1f, 0.3f), Mat("봉인함", new Color(0.3f, 0.25f, 0.22f)), true).AddComponent<FloorToHeight>().topOffset = -0.1f;
         }
 
@@ -340,7 +448,7 @@ namespace Dokkaebi.EditorTools
             seal.correct = correct;
             var keep = new GameObject("잘못된 처리 자리 - 기억 선반 (PRC-04)").AddComponent<WrongPlaceZone>();
             keep.transform.SetParent(heightRoot, false);
-            keep.transform.position = new Vector3(0.9f, H + 0.12f, 0.4f);
+            keep.transform.position = new Vector3(0.9f, H + 0.12f, MemoryShelfZ);
             keep.halfExtents = new Vector3(0.3f, 0.35f, 0.2f);
             keep.zoneName = "기억 선반";
             keep.correct = correct;
@@ -882,7 +990,8 @@ namespace Dokkaebi.EditorTools
         {
             var root = new GameObject("도깨비 (임시 연출, NPC-01·02)");
             root.transform.SetParent(env, false);
-            root.transform.position = new Vector3(0f, 0f, 1.12f);
+            // 작업대 뒤 모서리 바로 뒤 (11/26 작업대 모델은 뒤 모서리 z 1.05 → 도깨비 몸 앞이 닿지 않게 z 1.24). 기억 영상 화면(z 1.30) 앞
+            root.transform.position = new Vector3(0f, 0f, DokkaebiZ);
             root.transform.rotation = Quaternion.Euler(0f, 180f, 0f); // 플레이어(원점) 쪽을 본다
             var visual = new GameObject("모습 (11/20 신주연 모델·효과로 교체)").transform;
             visual.SetParent(root.transform, false);
@@ -892,12 +1001,12 @@ namespace Dokkaebi.EditorTools
             if (fbx != null)
             {
                 model = (GameObject)PrefabUtility.InstantiatePrefab(fbx);
-                model.name = "도깨비 베이스 모델 (SM_Dokkaebi_Base)";
+                model.name = "도깨비 모델 (SK_Dokkaebi_Bear, 신주연 11/26)";
                 model.transform.SetParent(visual, false);
                 // 높이 1.6m, 발을 바닥에 맞춘다 (모델 축척·방향은 임포트 설정에 따라 다를 수 있어 눈으로 확인)
                 var rends = model.GetComponentsInChildren<Renderer>();
-                // 베이스 모델은 텍스처 없는 흰 재질이라 스탠드 빛에 하얗게 날아간다. 텍스처가 오기 전까지 차분한 회백색으로
-                var baseMat = Mat("도깨비 베이스", new Color(0.72f, 0.7f, 0.66f));
+                // 신주연 텍스처(T_Dokkaebi.jpg)를 입힌다. FBX 임베디드 재질은 텍스처 경로가 신주연 PC라 쓰지 않는다 (11/26). 텍스처가 없으면 회백색
+                var baseMat = ModelMat("M_Dokkaebi (신주연 텍스처)", AssetDatabase.LoadAssetAtPath<Texture2D>(DokkaebiTex), new Color(0.72f, 0.7f, 0.66f), 0.1f);
                 foreach (var r in rends)
                 {
                     var shared = r.sharedMaterials;
