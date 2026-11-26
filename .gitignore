@@ -114,3 +114,11 @@ InitTestScene*.unity*
 *.symbols.zip
 *_BackUpThisFolder_ButDontShipItWithYourGame/
 *_BurstDebugInformation_DoNotShip/
+
+# 11/26 신주연 아트를 하위 폴더로 옮기기 전 경로. 그때 PC마다 생긴 .meta가 남아 있어도 변경 목록에 뜨지 않게 (Unity가 열리면 지움)
+/Assets/Art/Models/SM_Wooden.fbx.meta
+/Assets/Art/Models/SM_Tool_Tray.fbx.meta
+/Assets/Art/Dokkaebi/SK_Dokkaebi_Bear.fbx.meta
+/Assets/Art/Textures/T_Wooden.jpg.meta
+/Assets/Art/Textures/SK_Dokkaebi_Base.fbm.meta
+/Assets/Art/Textures/SK_Dokkaebi_Base.fbm/

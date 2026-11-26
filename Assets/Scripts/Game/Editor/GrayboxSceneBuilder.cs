@@ -39,11 +39,13 @@ namespace Dokkaebi.EditorTools
         const string ShaderFade = "Dokkaebi/ScreenFade";
         const string ShaderScreen = "Dokkaebi/MemoryScreen";
         // 도깨비: 11/26 신주연 리깅 모델(곰 인형 도깨비, 뼈 67개, 키 1.7m)로 교체. 이전 베이스 모델은 SM_Dokkaebi_Base.fbx
-        const string DokkaebiFbx = "Assets/Art/Dokkaebi/SK_Dokkaebi_Bear.fbx";
-        const string DokkaebiTex = "Assets/Art/Textures/SK_Dokkaebi_Base.fbm/T_Dokkaebi.jpg";
+        const string DokkaebiFbx = "Assets/Art/Dokkaebi/Bear/SK_Dokkaebi_Bear.fbx";
+        const string DokkaebiTex = "Assets/Art/Textures/Dokkaebi/T_Dokkaebi.jpg";
+        // 11/26 신주연 새 아트는 하위 폴더(Models/Workbench·ToolTray, Dokkaebi/Bear, Textures/Workbench·Dokkaebi)로 옮겼다.
+        //  처음 커밋에 .meta가 없어 PC마다 다른 .meta가 생겨 있으면 같은 경로로는 pull이 막히기 때문 (경로를 바꾸면 남은 .meta는 Unity가 지움)
         // 작업대: 11/26 신주연 모델 (가로 1.95 × 높이 0.85 × 깊이 0.75m, 서랍 3개). 텍스처는 FBX가 신주연 PC 경로를 가리켜 직접 연결한다
-        const string WorkbenchFbx = "Assets/Art/Models/SM_Wooden.fbx";
-        const string WorkbenchTex = "Assets/Art/Textures/T_Wooden.jpg";
+        const string WorkbenchFbx = "Assets/Art/Models/Workbench/SM_Wooden.fbx";
+        const string WorkbenchTex = "Assets/Art/Textures/Workbench/T_Wooden.jpg";
         const float WorkbenchFrontZ = 0.30f; // 플레이어(원점)에서 작업대 앞 모서리까지. 레벨 명세(상판 1.2×0.6, 가운데 z 0.6)의 앞 모서리와 같게 둔다
         // 신주연 아트 (11/17, week4/dev). 텍스처는 아직 없어 색 재질을 입힌다 (모델 재질에 텍스처가 붙어 있으면 그대로 쓴다)
         const string BearTornFbx = "Assets/Art/Models/SM_Bear_Torn.fbx";               // 수선 전: 몸 + 배 속 단추 + 접힌 쪽지
