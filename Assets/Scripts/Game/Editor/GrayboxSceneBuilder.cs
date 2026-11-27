@@ -52,11 +52,13 @@ namespace Dokkaebi.EditorTools
         const string BearRepairedFbx = "Assets/Art/Models/SM_Bear_Repaired.fbx";       // 수선 후
         const string StuffingFbx = "Assets/Art/Models/SM_Bear_Stuffing_Interactive.fbx"; // 솜 덩어리
         const string DriverFbx = "Assets/Art/Models/SM_Tool_Driver.fbx";               // 프롤로그 작은 드라이버
-        const string MemoryVideoEP01 = "Assets/Art/Videos/EP01_Memory_Temp.mp4";        // EP01 임시 기억 영상 (1912×1080, 20.2초, 검은 배경 아님)
+        // EP01 기억 영상 완성본 (11/27). 원본 input.realesrgan.1.mp4는 7680×4320이라 Quest용으로 1920×1080 H.264(30fps, 20.0초, 검은 배경)로 줄인 것
+        const string MemoryVideoEP01 = "Assets/Art/Videos/EP01_Memory_Final.mp4";
+        const string MemoryVideoEP01Temp = "Assets/Art/Videos/EP01_Memory_Temp.mp4";    // 이전 임시 영상 (1912×1080, 20.2초). 연결돼 있으면 완성본으로 바꾼다
         // MEM-06 투명 배경 영상 확인용: EP01 영상에 가장자리 12% 페이드 알파를 넣은 VP8 webm (1280×720, 30fps, 11/19).
         // 켜 두면 기억 영상이 투명 배경 영상 → (준비 실패 시) EP01 원본 순서로 재생된다. Quest에서 끊기면 끄고 씬을 다시 만든다
         const string AlphaTestVideo = "Assets/Video/Test/EP01_Memory_Temp_AlphaTest.webm";
-        static bool useAlphaTestVideo = true;
+        static bool useAlphaTestVideo = false; // 11/27 완성본 연결로 끔 (켜 두면 임시 영상으로 만든 webm이 먼저 재생됨)
         // 임포트한 곰 인형 모델이 배를 +z, 머리를 +y로 두지 않으면 여기서 돌린다
         static readonly Vector3 BearModelEuler = Vector3.zero;
         [Tooltip("도깨비 베이스 모델을 임시 연출에 쓸지 (없으면 기둥)")]
@@ -1357,7 +1359,8 @@ namespace Dokkaebi.EditorTools
             var ep01 = AssetDatabase.LoadAssetAtPath<VideoClip>(MemoryVideoEP01);
             if (ep01 == null) return;
             bool changed = false;
-            if (d.memoryVideo == null || AssetDatabase.GetAssetPath(d.memoryVideo).Contains("Placeholder")) { d.memoryVideo = ep01; changed = true; }
+            string curPath = d.memoryVideo != null ? AssetDatabase.GetAssetPath(d.memoryVideo) : null;
+            if (d.memoryVideo == null || curPath.Contains("Placeholder") || curPath == MemoryVideoEP01Temp) { d.memoryVideo = ep01; changed = true; }
             if (d.memoryVideoAlpha != null && AssetDatabase.GetAssetPath(d.memoryVideoAlpha).Contains("Placeholder")) { d.memoryVideoAlpha = null; changed = true; }
             // MEM-06 확인용 투명 배경 영상: 켜면 빈 칸에 넣고, 끄면 확인용 영상일 때만 뺀다 (신주연 투명 영상을 넣어 두면 건드리지 않음)
             var alphaTest = AssetDatabase.LoadAssetAtPath<VideoClip>(AlphaTestVideo);
